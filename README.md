@@ -29,7 +29,13 @@ npm run bump -- --patch     # 0.1.0 → 0.1.1
 npm run bump -- --major     # 0.1.0 → 1.0.0
 ```
 
-Updates `package.json`, `package-lock.json` and the web manifest. The version is built into the app (login screen, settings) — rebuild after bumping.
+Write release notes under `## [Unreleased]` in `CHANGELOG.md` as you go. The bump:
+
+1. updates the version in `package.json`, `package-lock.json` and the web manifest;
+2. moves the "Unreleased" notes under `## [x.y.z] - <date>` and starts a fresh "Unreleased";
+3. commits exactly those files as "Release vx.y.z" (add `--no-commit` to review first).
+
+The version is built into the app (login screen, settings): rebuild after bumping.
 
 ## Production
 
