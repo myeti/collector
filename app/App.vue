@@ -1,9 +1,8 @@
 <template>
   <div class="aurora" aria-hidden="true"><span></span><i></i></div>
 
-  <div v-if="!store.ready" class="boot"><span>✦</span></div>
-
-  <template v-else>
+  <!-- Until then, the splash of index.html covers the page -->
+  <template v-if="store.ready">
     <aside v-if="chrome" class="sidebar">
       <router-link :to="`/c/${store.type}`" class="brand">
         <AppLogo class="mark" neon tight :size="26" :stroke-width="1.4" />
@@ -76,6 +75,7 @@ import AddSheet from './components/AddSheet.vue'
 import AppLogo from './components/AppLogo.vue'
 import PwaStatus from './components/PwaStatus.vue'
 import Toasts from './components/Toasts.vue'
+import { hideSplash } from './lib/splash.js'
 
 export default {
   name: 'App',
@@ -90,6 +90,10 @@ export default {
       return n.split(/[\s@.]+/).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('')
     },
   },
+  mounted() {
+    // The first navigation waits for the session check: the first page is ready to show.
+    this.$router.isReady().catch(() => {}).finally(() => this.$nextTick(hideSplash))
+  },
   methods: {
     goType(type) {
       this.$router.push({ path: `/c/${type}`, query: this.$route.name === 'library' ? { q: this.$route.query.q } : {} })
@@ -103,9 +107,6 @@ export default {
 </script>
 
 <style scoped>
-.boot { position: fixed; inset: 0; display: grid; place-items: center; font-size: 26px; color: var(--accent); }
-.boot span { animation: spin 2.4s linear infinite, pulse 1.2s ease-in-out infinite alternate; text-shadow: 0 0 16px currentColor; }
-@keyframes pulse { to { opacity: 0.4; transform: scale(0.8); } }
 
 .sidebar {
   position: fixed; inset: 0 auto 0 0; width: var(--sidebar); padding: 18px 12px 12px; display: none;

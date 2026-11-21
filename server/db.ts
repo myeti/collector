@@ -62,7 +62,6 @@ export const Item: AnyModel = sequelize.define('item', {
   type: { type: DataTypes.ENUM(...MEDIA_TYPES), allowNull: false },
   // Common
   title: { type: DataTypes.STRING(512), allowNull: false },
-  original_title: { type: DataTypes.STRING(512) },
   author: { type: DataTypes.STRING(512) },
   cover: { type: DataTypes.STRING(1024) },
   genre: { type: DataTypes.STRING(128) },
@@ -71,7 +70,9 @@ export const Item: AnyModel = sequelize.define('item', {
   condition: { type: DataTypes.ENUM(...CONDITIONS) },
   barcode: { type: DataTypes.STRING(32) },
   consumed: { type: DataTypes.BOOLEAN, defaultValue: false, allowNull: false },
-  comment: { type: DataTypes.TEXT },
+  digitalized: { type: DataTypes.BOOLEAN, defaultValue: false, allowNull: false }, // digital copy, not a physical one
+  description: { type: DataTypes.TEXT }, // synopsis from metadata sources
+  comment: { type: DataTypes.TEXT }, // the user's own note
   user_id: { type: DataTypes.UUID, allowNull: false },
   // Book / game
   editor: { type: DataTypes.STRING(255) },

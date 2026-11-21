@@ -31,11 +31,11 @@
               <span class="badge accent"><vue-feather :type="MEDIA[item.type].icon" size="12" /> {{ categoryLabel || $t(`media.${item.type}`) }}</span>
               <span v-if="item.format" class="badge">{{ $t(`format.${item.format}`) }}</span>
               <span v-if="item.genre" class="badge">{{ genreLabel }}</span>
+              <span v-if="item.digitalized" class="badge"><vue-feather type="cloud" size="12" /> {{ $t('library.copies.digital') }}</span>
             </div>
             <h1 class="display title">{{ item.title }}</h1>
-            <p v-if="item.original_title && item.original_title !== item.title" class="muted orig">{{ item.original_title }}</p>
             <p v-if="byline" class="byline">{{ byline }}</p>
-            <p v-if="item.saga" class="saga"><vue-feather type="bookmark" size="14" /> {{ item.saga }}<template v-if="item.volume"> · {{ $t('fields.volume') }} {{ item.volume }}</template></p>
+            <p v-if="item.saga" class="saga"><vue-feather type="bookmark" size="14" /> {{ item.saga }}<template v-if="item.volume"> · {{ volumeLabel }} {{ item.volume }}</template></p>
 
             <div class="actions">
               <button
@@ -63,24 +63,35 @@
 
         <div class="panel details">
           <div class="panel-title"><vue-feather type="info" size="14" /> {{ $t('item.details') }}</div>
-          <dl>
+          <dl v-if="details.length">
             <template v-for="d in details" :key="d.key">
               <dt>{{ d.label }}</dt>
               <dd :class="{ mono: d.mono }">{{ d.value }}</dd>
             </template>
           </dl>
+          <!-- Synopsis from the sources, then the owner's own note -->
+          <template v-if="item.description">
+            <hr v-if="details.length" class="divider" />
+            <div class="text-block">
+              <span class="block-label">{{ $t('fields.description') }}</span>
+              <p class="description">{{ item.description }}</p>
+            </div>
+          </template>
           <template v-if="item.comment">
-            <hr class="divider" />
-            <p class="comment">{{ item.comment }}</p>
+            <hr v-if="details.length || item.description" class="divider" />
+            <div class="text-block">
+              <span class="block-label">{{ $t('fields.comment') }}</span>
+              <p class="comment">{{ item.comment }}</p>
+            </div>
           </template>
           <p class="faint added">{{ $t('item.addedOn', { date: new Date(item.created_at).toLocaleDateString($i18n.locale, { dateStyle: 'long' }) }) }}</p>
         </div>
       </template>
 
       <!-- Just added from an add flow: chain the next one -->
-      <div v-if="item && anotherMode" class="another">
-        <router-link class="btn primary lg" :to="`/add/${item.type}/${anotherMode}`" replace>
-          <vue-feather :type="anotherMode === 'scan' ? 'maximize' : anotherMode === 'photo' ? 'camera' : 'globe'" size="16" />
+      <div v-if="item && anotherMode" class="action-bar center another">
+        <router-link class="btn primary lg" :to="startPath(anotherMode, item.type)" replace>
+          <vue-feather :type="{ scan: 'maximize', photo: 'camera', search: 'globe', manual: 'edit-3' }[anotherMode]" size="16" />
           {{ $t(`item.another.${anotherMode}`) }}
         </router-link>
       </div>
@@ -92,6 +103,7 @@
 import CoverImage from '../components/CoverImage.vue'
 import { api } from '../lib/api.js'
 import { store } from '../lib/store.js'
+import { startPath } from '../lib/addSession.js'
 import { toast, toastError } from '../lib/toast.js'
 import { sparkle, vibrate } from '../lib/sparkle.js'
 import { MEDIA, CONDITIONS } from '../../shared/media.js'
@@ -102,9 +114,13 @@ export default {
   components: { CoverImage },
   data: () => ({ item: null, MEDIA, CONDITIONS }),
   computed: {
+    volumeLabel() {
+      const key = `fields.volumeBy.${this.item.type}`
+      return this.$te(key) ? this.$t(key) : this.$t('fields.volume')
+    },
     anotherMode() {
       const from = this.$route.query.from
-      return ['scan', 'search', 'photo'].includes(from) ? from : null
+      return ['scan', 'search', 'photo', 'manual'].includes(from) ? from : null
     },
     categoryLabel() {
       const i = this.item
@@ -145,6 +161,7 @@ export default {
     }
   },
   methods: {
+    startPath,
     personColor,
     initial,
     back() {
@@ -215,7 +232,6 @@ export default {
 .shine { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle at var(--mx, 30%) var(--my, 10%), rgb(255 255 255 / 0.25), transparent 50%); mix-blend-mode: soft-light; }
 .info { display: flex; flex-direction: column; gap: 8px; padding-top: 2px; }
 .title { font-size: clamp(24px, 3.6vw, 34px); line-height: 1.1; }
-.orig { margin: -2px 0 0; font-style: italic; font-size: 13px; }
 .byline { margin: 0; font-size: 15px; font-weight: 550; color: var(--muted); }
 .saga { margin: 0; color: var(--accent-ink); display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; }
 .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-top: 8px; }
@@ -239,15 +255,13 @@ export default {
 dl { display: grid; grid-template-columns: max-content 1fr; gap: 8px 20px; margin: 0; }
 dt { color: var(--faint); font-size: 12.5px; }
 dd { margin: 0; font-weight: 550; font-size: 13.5px; overflow-wrap: anywhere; }
-.comment { white-space: pre-wrap; margin: 0; line-height: 1.6; font-size: 13.5px; color: var(--muted); }
+.text-block { display: flex; flex-direction: column; gap: 4px; }
+.block-label { font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.08em; color: var(--faint); }
+.description, .comment { white-space: pre-wrap; margin: 0; line-height: 1.6; font-size: 13.5px; color: var(--muted); }
+.comment { color: var(--text); }
 .added { font-size: 11.5px; margin: 14px 0 0; }
-.another {
-  position: sticky; bottom: calc(var(--bottom-nav) + 12px + var(--safe-bottom)); display: flex; justify-content: center;
-  margin-top: 16px; z-index: 5; animation: rise 0.45s var(--spring) both; animation-delay: 0.3s;
-}
-.another .btn { box-shadow: 0 12px 30px -10px var(--accent-glow); min-width: 220px; }
-@media (min-width: 900px) { .another { bottom: 16px; } }
-@media (max-width: 600px) { .another .btn { width: 100%; } }
+.another { margin-top: 16px; animation: rise 0.45s var(--spring) both; animation-delay: 0.3s; }
+.another .btn { min-width: 220px; }
 @keyframes rise { from { opacity: 0; transform: translateY(12px); } }
 @keyframes arrive { from { opacity: 0; transform: translateY(14px) rotate(-2deg) scale(0.96); } }
 @media (max-width: 700px) {

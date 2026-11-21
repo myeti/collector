@@ -21,12 +21,22 @@ const routes = [
   { path: '/item/:id', name: 'item', component: () => import('./views/ItemView.vue') },
   { path: '/item/:id/edit', name: 'edit', component: () => import('./views/ItemFormView.vue') },
   { path: '/new/:type', name: 'new', component: () => import('./views/ItemFormView.vue') },
+  { path: '/add/:type/review', name: 'review', component: () => import('./views/ReviewView.vue') },
   { path: '/add/:type/:mode(scan|search|photo)', name: 'add', component: () => import('./views/AddView.vue') },
-  { path: '/bulk/:type', name: 'bulk', component: () => import('./views/BulkView.vue') },
-  { path: '/family', redirect: '/settings' },
+  { path: '/bulk/:type', redirect: (to) => `/add/${to.params.type}/photo` },
+  { path: '/family', redirect: '/settings/account' },
   // Home-screen shortcut (manifest): straight to the scanner of the current collection.
   { path: '/scan', component: { render: () => null }, beforeEnter: () => `/add/${store.type}/scan` },
-  { path: '/settings', component: () => import('./views/SettingsView.vue') },
+  {
+    path: '/settings',
+    component: () => import('./views/settings/SettingsLayout.vue'),
+    children: [
+      { path: '', component: { render: () => null } }, // the menu (phones); desktop opens Account
+      { path: 'account', component: () => import('./views/settings/AccountSettings.vue') },
+      { path: 'sources', component: () => import('./views/settings/SourcesSettings.vue') },
+      { path: 'import', component: () => import('./views/settings/ImportSettings.vue') },
+    ],
+  },
   { path: '/:pathMatch(.*)*', redirect: '/' },
 ]
 

@@ -39,14 +39,13 @@ const tmdb: Connector = {
         : d.credits?.crew?.filter((p: any) => p.job === 'Director').map((p: any) => p.name)
       return candidate(this, 'movie', {
         title: d.title || d.name,
-        original_title: d.original_title || d.original_name,
         director,
         release_date: d.release_date || d.first_air_date,
         genre: genreIds.map((g) => TMDB_GENRES[g]).find(Boolean),
         category: isTv ? (animated ? 'animated_series' : 'series') : (animated ? 'animated_movie' : 'movie'),
         saga: d.belongs_to_collection?.name?.replace(/\s*[-–]?\s*(Saga|Collection|la saga)$/i, ''),
         cover: d.poster_path ? `https://image.tmdb.org/t/p/w780${d.poster_path}` : undefined,
-        comment: d.overview?.slice(0, 600),
+        description: d.overview?.slice(0, 2000),
       }, `https://www.themoviedb.org/${hit.media_type}/${hit.id}`)
     }))
   },
@@ -74,7 +73,7 @@ const omdb: Connector = {
         genre: na(d.Genre),
         category: series ? (animated ? 'animated_series' : 'series') : (animated ? 'animated_movie' : 'movie'),
         cover: na(d.Poster),
-        comment: na(d.Plot),
+        description: na(d.Plot),
       }, `https://www.imdb.com/title/${hit.imdbID}/`)
     }))
   },

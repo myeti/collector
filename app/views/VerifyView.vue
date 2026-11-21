@@ -31,7 +31,6 @@ export default {
       store.setUser(user)
       store.openStartType()
       store.refreshStats()
-      store.refreshLlm()
       // Let the portal spin a little: magic needs a moment.
       await new Promise((r) => setTimeout(r, Math.max(0, 900 - (Date.now() - started))))
       this.$router.replace(`/c/${store.type}`)

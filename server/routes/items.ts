@@ -5,6 +5,7 @@ import { MEDIA, MEDIA_TYPES, CONDITIONS, fieldsFor } from '../../shared/media.js
 import { badRequest, forbidden, notFound } from '../lib/http.ts'
 import { importRemoteImage, deleteImage, ownsUpload } from '../lib/images.ts'
 import { serializeItem } from './serializers.ts'
+import { ownedMatcher } from '../lib/matching.ts'
 
 export const itemsRouter = Router()
 
@@ -16,15 +17,15 @@ const SORTS: Record<string, [string, string][]> = {
   saga: [['saga', 'ASC NULLS LAST'], [sequelize.literal(`NULLIF(regexp_replace(volume, '\\D', '', 'g'), '')::int`) as any, 'ASC NULLS LAST'], ['title', 'ASC']],
 }
 
-const SEARCHABLE = ['title', 'original_title', 'author', 'saga', 'editor', 'label', 'director', 'barcode', 'isbn', 'genre', 'category', 'comment']
+const SEARCHABLE = ['title', 'author', 'saga', 'editor', 'label', 'director', 'barcode', 'isbn', 'genre', 'category', 'comment']
 
 /** Keeps only the fields that belong to the item's media type, with light validation. */
-function sanitize(body: any, type: string) {
+export function sanitize(body: any, type: string) {
   const out: Record<string, any> = {}
   for (const f of fieldsFor(type)) {
     if (!(f in body)) continue
     let v = body[f]
-    if (f === 'consumed') { out.consumed = !!v; continue }
+    if (f === 'consumed' || f === 'digitalized') { out[f] = !!v; continue }
     if (v === '' || v === undefined) v = null
     if (v !== null) v = String(v).trim()
     if (f === 'condition' && v && !CONDITIONS.includes(v)) throw badRequest('invalid_condition')
@@ -37,6 +38,13 @@ function sanitize(body: any, type: string) {
   }
   if (body.extra && typeof body.extra === 'object' && !Array.isArray(body.extra)) out.extra = body.extra
   return out
+}
+
+/** Whose items a shelf shows: one family member (?owner=), or everyone visible to the user. */
+async function shelfOwners(req: any) {
+  const ids = await visibleUserIds(req.user)
+  const owner = String(req.query.owner || '')
+  return owner && ids.includes(owner) ? [owner] : ids
 }
 
 async function findVisible(req: any) {
@@ -68,18 +76,17 @@ async function releaseCover(cover: string | null, ownerId: string) {
 }
 
 itemsRouter.get('/', async (req: any, res) => {
-  const { type, q, category, genre, consumed, owner, format, condition, sort = 'recent' } = req.query
+  const { type, q, category, genre, consumed, digitalized, format, condition, sort = 'title' } = req.query
   const limit = Math.min(Number(req.query.limit) || 60, 200)
   const offset = Math.max(Number(req.query.offset) || 0, 0)
-  const ids = await visibleUserIds(req.user)
-
-  const where: any = { user_id: { [Op.in]: owner && ids.includes(owner) ? [owner] : ids } }
+  const where: any = { user_id: { [Op.in]: await shelfOwners(req) } }
   if (type && MEDIA_TYPES.includes(type)) where.type = type
   if (category) where.category = category
   if (genre) where.genre = genre
   if (format) where.format = format
   if (condition) where.condition = condition
   if (consumed === 'true' || consumed === 'false') where.consumed = consumed === 'true'
+  if (digitalized === 'true' || digitalized === 'false') where.digitalized = digitalized === 'true'
   if (q && String(q).trim()) {
     // Every word must match at least one searchable column: "potter 3" finds volume 3.
     where[Op.and] = String(q).trim().split(/\s+/).slice(0, 6).map((word) => {
@@ -94,7 +101,7 @@ itemsRouter.get('/', async (req: any, res) => {
   const { rows, count } = await Item.findAndCountAll({
     where,
     include: [{ model: User, as: 'owner' }],
-    order: SORTS[sort] || SORTS.recent,
+    order: SORTS[sort] || SORTS.title,
     limit,
     offset,
   })
@@ -102,9 +109,8 @@ itemsRouter.get('/', async (req: any, res) => {
 })
 
 itemsRouter.get('/stats', async (req: any, res) => {
-  const ids = await visibleUserIds(req.user)
   const rows: any[] = await Item.findAll({
-    where: { user_id: { [Op.in]: ids } },
+    where: { user_id: { [Op.in]: await shelfOwners(req) } },
     attributes: ['type', [sequelize.fn('COUNT', sequelize.col('id')), 'count'],
       [sequelize.fn('SUM', sequelize.literal('CASE WHEN consumed THEN 1 ELSE 0 END')), 'consumed']],
     group: ['type'],
@@ -120,7 +126,7 @@ itemsRouter.get('/stats', async (req: any, res) => {
 itemsRouter.get('/facets', async (req: any, res) => {
   const type = String(req.query.type || '')
   if (!MEDIA_TYPES.includes(type)) throw badRequest('invalid_type')
-  const ids = await visibleUserIds(req.user)
+  const ids = await shelfOwners(req)
   const facets: Record<string, { value: string; count: number }[]> = {}
   for (const field of ['category', 'format']) {
     const rows: any[] = await Item.findAll({
@@ -134,15 +140,17 @@ itemsRouter.get('/facets', async (req: any, res) => {
   res.json({ facets })
 })
 
-/** Duplicate detection while scanning. */
-itemsRouter.get('/by-barcode/:code', async (req: any, res) => {
-  const code = String(req.params.code).replace(/[^0-9X]/gi, '').toUpperCase()
-  const ids = await visibleUserIds(req.user)
-  const items = await Item.findAll({
-    where: { user_id: { [Op.in]: ids }, [Op.or]: [{ barcode: code }, { isbn: code }] },
-    include: [{ model: User, as: 'owner' }],
-  })
-  res.json({ items: items.map((i) => serializeItem(i, req.user)) })
+/**
+ * Is this item already in the family's collection? Strict (same barcode / ISBN) or wide (same title and author).
+ * Asked live while an item is being added or edited; exclude: the item being edited.
+ */
+itemsRouter.post('/duplicates', async (req: any, res) => {
+  const type = req.body?.type
+  if (!MEDIA_TYPES.includes(type)) throw badRequest('invalid_type')
+  const fields = req.body?.fields && typeof req.body.fields === 'object' ? req.body.fields : {}
+  const exclude = typeof req.body?.exclude === 'string' && /^[0-9a-f-]{36}$/i.test(req.body.exclude) ? req.body.exclude : undefined
+  const match = await ownedMatcher(req.user, type, { exclude })
+  res.json({ duplicate: match(fields) })
 })
 
 /** Distinct values already used, to power autocompletion (sagas, authors, labels…). */

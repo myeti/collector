@@ -16,7 +16,7 @@ export default {
 </script>
 
 <style scoped>
-.meta-line { display: flex; gap: 0.3em; min-width: 0; white-space: nowrap; }
+.meta-line { display: flex; gap: 0.3em; min-width: 0; overflow: hidden; white-space: nowrap; }
 .shrink { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .keep { flex: none; }
 </style>

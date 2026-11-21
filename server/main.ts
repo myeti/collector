@@ -13,6 +13,8 @@ import { lookupRouter } from './routes/lookup.ts'
 import { uploadsRouter } from './routes/uploads.ts'
 import { familyRouter } from './routes/family.ts'
 import { settingsRouter } from './routes/settings.ts'
+import { importRouter } from './routes/import.ts'
+import { coversRouter } from './routes/covers.ts'
 
 const app = express()
 // Client IPs (rate limits) come from X-Forwarded-For only when the request arrives through a proxy on this
@@ -50,6 +52,8 @@ app.use('/api', (req, _res, next) => {
   next(new HttpError(403, 'forbidden_origin'))
 })
 
+// Imports send a whole library at once; everything else stays small.
+app.use('/api/import', express.json({ limit: '10mb' }))
 app.use(express.json({ limit: '1mb' }))
 app.use(cookieParser())
 app.use(loadSession)
@@ -61,6 +65,8 @@ app.use('/api/lookup', requireAuth, lookupRouter)
 app.use('/api/uploads', requireAuth, uploadsRouter)
 app.use('/api/family', requireAuth, familyRouter)
 app.use('/api/settings', requireAuth, settingsRouter)
+app.use('/api/import', requireAuth, importRouter)
+app.use('/api/covers', requireAuth, coversRouter)
 app.use('/api', (_req, _res, next) => next(new HttpError(404, 'not_found')))
 
 // Covers are private to signed-in users.

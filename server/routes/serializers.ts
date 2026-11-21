@@ -1,4 +1,6 @@
 import { Family } from '../db.ts'
+import { readSecrets } from '../lib/secrets.ts'
+import { llmEnabled } from '../lib/ai.ts'
 import { userPrefs } from '../../shared/media.js'
 
 export async function serializeUser(user: any) {
@@ -11,6 +13,8 @@ export async function serializeUser(user: any) {
     locale: user.locale,
     theme: user.theme,
     prefs: userPrefs(user.prefs),
+    // An AI model is configured: photo reading is offered
+    ai: llmEnabled(readSecrets(user).llm),
     family: family ? { id: family.id, name: family.name, owner_id: family.owner_id } : null,
   }
 }

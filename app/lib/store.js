@@ -1,5 +1,5 @@
 import { reactive } from 'vue'
-import { api } from './api.js'
+import { api, qs } from './api.js'
 import { setLocale } from '../i18n/index.js'
 import { clearPrivateCaches } from './pwa.js'
 import { MEDIA, MEDIA_TYPES, DEFAULT_TYPES, DEFAULT_START_TYPE } from '../../shared/media.js'
@@ -17,19 +17,21 @@ function load(key, fallback) {
   try { return localStorage.getItem(key) || fallback } catch { return fallback }
 }
 function persist(key, value) {
-  try { localStorage.setItem(key, value) } catch {}
+  try {
+    if (value === null) localStorage.removeItem(key)
+    else localStorage.setItem(key, value)
+  } catch {}
 }
 
 export const store = reactive({
   user: null,
   ready: false,
   stats: Object.fromEntries(MEDIA_TYPES.map((t) => [t, { count: 0, consumed: 0 }])),
+  ownerChoice: null, // see owner
   // Current collection: starts on the user's startup collection (see openStartType).
   type: DEFAULT_START_TYPE,
   view: load('collector.view', 'grid'),
   llmEnabled: false,
-  /** Fields chosen in the cherry-picker, consumed by the item form. */
-  draft: null,
   addOpen: false,
 
   async init() {
@@ -38,7 +40,6 @@ export const store = reactive({
       this.setUser(user)
       this.openStartType()
       this.refreshStats()
-      this.refreshLlm()
     } catch {
       this.user = null
     }
@@ -49,21 +50,37 @@ export const store = reactive({
     // Another account on this device: never show the previous one's cached collection.
     if (user && this.user && user.id !== this.user.id) clearPrivateCaches()
     this.user = user
+    this.llmEnabled = !!user?.ai
+    // Per account: another account on this device has its own choice
+    this.ownerChoice = user?.family ? load(`collector.owner.${user.id}`, null) : null
     if (user) {
       setLocale(user.locale)
       this.applyTheme(user.theme)
     }
   },
 
-  async refreshStats() {
-    if (!this.user) return
-    const { stats } = await api.get('/items/stats').catch(() => ({ stats: null }))
-    if (stats) this.stats = stats
+  /**
+   * Whose items the shelves show, in a family: the user's own by default ('' = everyone, else a member id).
+   * A different choice made in the filters is kept on this device. Outside a family: no filter.
+   */
+  get owner() {
+    if (!this.user?.family) return ''
+    if (this.ownerChoice === 'all') return ''
+    return this.ownerChoice || this.user.id
   },
 
-  async refreshLlm() {
-    const s = await api.get('/settings').catch(() => null)
-    this.llmEnabled = !!s?.llm?.enabled
+  setOwner(owner) {
+    if (!this.user?.family || owner === this.owner) return
+    // Back to the default (own items): nothing to remember
+    this.ownerChoice = owner === this.user.id ? null : owner || 'all'
+    persist(`collector.owner.${this.user.id}`, this.ownerChoice)
+    this.refreshStats()
+  },
+
+  async refreshStats() {
+    if (!this.user) return
+    const { stats } = await api.get(`/items/stats${qs({ owner: this.owner })}`).catch(() => ({ stats: null }))
+    if (stats) this.stats = stats
   },
 
   /** Collections shown in the interface (UI preference, items of hidden ones are kept). */

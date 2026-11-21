@@ -49,7 +49,7 @@ const googleBooks: Connector = {
         category: bookCategory(`${subjects} ${v.title}`),
         isbn,
         cover: img?.replace('&edge=curl', '').replace('zoom=1', 'zoom=0'),
-        comment: v.description?.slice(0, 600),
+        description: v.description?.slice(0, 2000),
         ...sagaHints(v.title),
       }, v.infoLink)
     })
@@ -118,7 +118,7 @@ function isbndbBook(this: Connector, b: any, code?: string) {
     isbn: b.isbn13,
     barcode: code,
     cover: b.image_original || b.image,
-    comment: b.synopsis?.slice(0, 600),
+    description: b.synopsis?.slice(0, 2000),
     ...sagaHints(b.title),
   }, b.isbn13 ? `https://isbndb.com/book/${b.isbn13}` : undefined)
 }
@@ -183,12 +183,10 @@ const mangaDex: Connector = {
       const a = m.attributes || {}
       const title = a.title?.[ctx.locale] || a.title?.en || Object.values(a.title || {})[0]
       const alt = (a.altTitles || []).find((t: any) => t[ctx.locale])?.[ctx.locale]
-      const original = (a.altTitles || []).find((t: any) => t['ja-ro'] || t.ja)
       const coverFile = m.relationships?.find((r: any) => r.type === 'cover_art')?.attributes?.fileName
       const tags = (a.tags || []).map((t: any) => t.attributes?.name?.en).filter(Boolean)
       return candidate(this, 'book', {
         title: alt || title,
-        original_title: original?.['ja-ro'] || original?.ja,
         author: m.relationships?.filter((r: any) => r.type === 'author').map((r: any) => r.attributes?.name),
         saga: alt || title,
         release_date: a.year,

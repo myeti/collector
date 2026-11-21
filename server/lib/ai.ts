@@ -67,7 +67,8 @@ export async function testConnection(llm: LlmConfig): Promise<string> {
 
 // ---------------------------------------------------------------- Schemas
 
-const HIDDEN = new Set(['cover', 'consumed', 'comment', 'condition'])
+// Never asked from the AI: the user's own note, the synopsis (not on a front cover), the item's state.
+const HIDDEN = new Set(['cover', 'consumed', 'digitalized', 'comment', 'description', 'condition'])
 
 /**
  * Item fields for a media type, lenient on purpose: models in plain JSON mode often omit empty fields
@@ -107,22 +108,6 @@ const imagePart = (jpeg: Buffer) => ({ type: 'image' as const, image: jpeg, medi
 
 // ---------------------------------------------------------------- Tasks
 
-/** Reads a cover photo and returns the metadata it can infer from it. */
-export async function extractFromCover(llm: LlmConfig, jpeg: Buffer, type: MediaType, locale: string): Promise<Candidate | null> {
-  const { output } = await generateText({
-    model: model(llm),
-    system: `You are cataloguing a physical ${type} item from a photo of its cover or packaging.\nRules:\n${rules(type, locale)}`,
-    messages: [{ role: 'user', content: [{ type: 'text', text: 'Here is the cover.' }, imagePart(jpeg)] }],
-    output: Output.object({ schema: itemSchema(type), name: 'item' }),
-    providerOptions,
-    maxRetries: 1,
-    abortSignal: AbortSignal.timeout(60_000),
-  })
-  if (!output?.title) return null
-  if (output.isbn) output.isbn = String(output.isbn).replace(/[^0-9X]/gi, '')
-  return candidate({ id: 'llm', name: `AI · ${llm.model}` }, type, output)
-}
-
 const BULK_HINTS: Record<string, string> = {
   book: 'Books seen by their spines or covers. Spine text is often vertical. For comics and mangas, set "saga" and "volume" when a series name and number are visible.',
   music: 'CDs, vinyls or tapes seen by their spines or covers. "author" is the artist or band, "title" the album.',
@@ -131,14 +116,14 @@ const BULK_HINTS: Record<string, string> = {
   custom: 'Collectible objects.',
 }
 
-/** Lists every item visible on a shelf / pile photo, in reading order. */
+/** Lists every item visible on a photo (one cover, a shelf, a pile), in reading order. */
 export async function detectMany(llm: LlmConfig, jpeg: Buffer, type: MediaType, locale: string): Promise<Candidate[]> {
   // An unreadable entry (no title) becomes null and is dropped, instead of failing the whole shelf.
   const schema = z.object({ items: z.array(itemSchema(type, ['barcode', 'isbn', 'genre']).nullable().catch(null)) })
   const { output } = await generateText({
     model: model(llm),
     system: [
-      `You are cataloguing a physical collection from ONE photo showing several ${type} items at once (a shelf, a pile, a box).`,
+      `You are cataloguing a physical collection from ONE photo showing one or several ${type} items (a single cover, a shelf, a pile, a box).`,
       BULK_HINTS[type] || '',
       'List every distinct item you can identify, in reading order (left to right, top to bottom); at most 60.',
       'One entry per physical item; repeat an entry if the same title appears twice. Skip items whose title you cannot read.',

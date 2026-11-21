@@ -140,7 +140,6 @@ export default {
         store.setUser(user)
         store.openStartType()
         store.refreshStats()
-        store.refreshLlm()
         this.$router.replace(`/c/${store.type}`)
       } catch (e) {
         this.codeError = e.human
@@ -194,7 +193,7 @@ export default {
 .field-pill {
   display: flex; align-items: center; gap: 8px; height: 52px; padding: 0 6px 0 16px; border-radius: var(--r-lg);
   background: color-mix(in oklab, var(--surface-solid) 85%, transparent); border: 1px solid var(--border-strong);
-  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); cursor: text;
+  backdrop-filter: blur(16px); cursor: text;
   transition: border-color 0.3s, box-shadow 0.4s;
 }
 .field-pill.focus { border-color: var(--accent-line); box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 14%, transparent), 0 18px 40px -20px var(--accent-glow); }

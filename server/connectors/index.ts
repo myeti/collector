@@ -70,6 +70,23 @@ export async function lookupBarcode(rawCode: string, ctx: Ctx): Promise<LookupRe
   return result
 }
 
+/**
+ * Finding an item, the same everywhere (add review, "Search sources", cover finder):
+ * its identifier (barcode, ISBN) first; when that finds nothing and a text is known, the text.
+ * The identifier may move the item to another media type (an ISBN scanned from the music tab is a book).
+ */
+export async function findItem(query: { code?: string; text?: string }, ctx: Ctx): Promise<LookupResult> {
+  let result: LookupResult | null = null
+  if (query.code) result = await lookupBarcode(query.code, ctx)
+  if ((!result || !result.candidates.length) && query.text && query.text.length >= 2) {
+    const search = await searchAll(query.text, { ...ctx, type: result?.type || ctx.type })
+    result = result
+      ? { ...search, type: result.type, sources: [...new Set([...result.sources, ...search.sources])], errors: [...result.errors, ...search.errors] }
+      : search
+  }
+  return result || { type: ctx.type, candidates: [], sources: [], errors: [] }
+}
+
 export async function searchAll(query: string, ctx: Ctx): Promise<LookupResult> {
   const result: LookupResult = { type: ctx.type, query, candidates: [], sources: [], errors: [] }
   const searchers = forType(ctx.type, ctx.keys).filter((x) => x.search)

@@ -31,11 +31,10 @@ export default {
     options() {
       return [
         { id: 'scan', icon: 'maximize', text: 'add.scanText', to: `/add/${this.type}/scan` },
-        { id: 'photo', icon: 'camera', text: store.llmEnabled ? 'add.photoText' : 'add.photoNoAi', to: `/add/${this.type}/photo` },
-        // Several items in one photo: only with an AI configured
-        ...(store.llmEnabled ? [{ id: 'bulk', icon: 'layers', text: 'add.bulkText', to: `/bulk/${this.type}` }] : []),
+        // One cover or a whole shelf, read by the AI: only with an AI configured
+        ...(store.llmEnabled ? [{ id: 'photo', icon: 'camera', text: 'add.photoText', to: `/add/${this.type}/photo` }] : []),
         { id: 'search', icon: 'globe', text: 'add.searchText', to: `/add/${this.type}/search` },
-        { id: 'manual', icon: 'edit-3', text: 'add.manualText', to: `/new/${this.type}` },
+        { id: 'manual', icon: 'edit-3', text: 'add.manualText', to: `/new/${this.type}?from=manual` },
       ]
     },
   },
@@ -45,7 +44,6 @@ export default {
   beforeUnmount() { store.applyAccent() },
   methods: {
     go(o) {
-      store.draft = null
       store.setType(this.type)
       this.$emit('close')
       this.$router.push(o.to)

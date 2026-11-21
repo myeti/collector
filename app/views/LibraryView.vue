@@ -10,33 +10,47 @@
           {{ $t(`library.countBy.${type}`, total) }}<template v-if="stats.consumed && !isFiltered"> · {{ $t(`library.done.${type}`, stats.consumed) }}</template>
         </p>
       </div>
+    </div>
 
-      <div class="searchbar">
+    <!-- Logo, search and buttons stay at the top while the shelf scrolls (a band appears once stuck) -->
+    <div ref="stickAt" class="stick-at" aria-hidden="true"></div>
+    <div class="searchbar" :class="{ stuck }">
         <AppLogo class="logo" neon tight :size="32" :stroke-width="1" />
         <div class="input-wrap grow">
           <span class="lead"><vue-feather type="search" size="16" /></span>
           <input
             ref="search" v-model="q" class="input" type="search" enterkeyhint="search"
-            :placeholder="$t('library.search', { media: $t(`media.${type}`).toLowerCase() })"
-            @keydown.esc="q = ''; $refs.search.blur()"
+            :placeholder="mobile ? $t('library.searchShort') : $t('library.search', { media: $t(`media.${type}`).toLowerCase() })"
+            @keydown.esc="q = ''; $refs.search.blur()" @focus="searchFocused = true" @blur="searchFocused = false"
           />
           <span class="trail">
-            <!-- Mobile: item count lives in the field (desktop shows it next to the title) -->
-            <span v-if="!loading || items.length" class="count-badge" :title="countText" :aria-label="countText">{{ total }}</span>
-            <button v-if="q" class="icon-btn sm plain" :aria-label="$t('common.close')" @click="q = ''"><vue-feather type="x" size="14" /></button>
+            <!-- Phones: one slot, the item count (desktop shows it next to the title), replaced by the clear button while typing.
+                 mousedown.prevent: clearing keeps the focus (and the button). -->
+            <span v-if="(!loading || items.length) && !searchFocused" class="count-badge" :title="countText" :aria-label="countText">{{ total }}</span>
+            <button v-if="q && (searchFocused || !mobile)" class="icon-btn sm plain" :aria-label="$t('common.close')" @mousedown.prevent @click="q = ''"><vue-feather type="x" size="14" /></button>
             <kbd v-else class="kbd-hint">/</kbd>
           </span>
         </div>
-        <button class="icon-btn filter-btn" :class="{ active: showFilters || activeFilters }" :aria-label="$t('library.filters')" @click="showFilters = !showFilters">
+        <button class="icon-btn filter-btn" :class="{ active: showFilters || activeFilters }" :aria-label="$t('library.filters')" @click="toggleFilters">
           <vue-feather type="sliders" size="15" />
           <span v-if="activeFilters" class="dot">{{ activeFilters }}</span>
         </button>
-        <div class="segmented view-toggle">
+        <!-- Phones: the filters panel lands here and floats over the list (see below) -->
+        <div id="filters-anchor" class="filters-anchor"></div>
+        <!-- Phones: one button showing the other view (room for the search). Desktop: both, the current one lit. -->
+        <button
+          v-if="mobile" class="icon-btn view-btn" :aria-label="$t(`library.${otherView}`)" :title="$t(`library.${otherView}`)"
+          @click="store.setView(otherView)"
+        >
+          <vue-feather :type="otherView" size="15" />
+        </button>
+        <div v-else class="segmented view-toggle">
           <button :class="{ on: store.view === 'grid' }" :aria-label="$t('library.grid')" @click="store.setView('grid')"><vue-feather type="grid" size="14" /></button>
           <button :class="{ on: store.view === 'list' }" :aria-label="$t('library.list')" @click="store.setView('list')"><vue-feather type="list" size="14" /></button>
         </div>
-      </div>
+    </div>
 
+    <div class="below">
       <!--
         Quick filter: category (books, games) or format (music, movies). On mobile it is fixed above the bottom bar
         and teleported to <body>: the page transitions use transforms, which would otherwise re-anchor a fixed element.
@@ -59,8 +73,11 @@
         </transition>
       </teleport>
 
+      <!-- Desktop: in the page, under the bar. Phones: floats over the list from the pinned bar, a tap outside closes it -->
+      <teleport defer to="#filters-anchor" :disabled="!mobile">
+        <div v-if="showFilters && mobile" class="filters-scrim" @click="showFilters = false"></div>
       <transition name="fade">
-        <div v-if="showFilters" class="filters panel">
+        <div v-if="showFilters" class="filters panel" :class="{ floating: mobile }">
           <div v-if="categories.length && quickField !== 'category'" class="field full">
             <span class="label">{{ $t('fields.category') }}</span>
             <div class="chips wrap">
@@ -75,6 +92,14 @@
             <div class="segmented accent">
               <button v-for="s in ['', 'true', 'false']" :key="s" :class="{ on: filters.consumed === s }" @click="filters.consumed = s">
                 {{ s === '' ? $t('library.status.all') : s === 'true' ? $t(`consumed.${type}`) : $t(`consumed.not.${type}`) }}
+              </button>
+            </div>
+          </div>
+          <div class="field">
+            <span class="label">{{ $t('library.copy') }}</span>
+            <div class="segmented accent">
+              <button v-for="s in ['', 'false', 'true']" :key="s" :class="{ on: filters.digitalized === s }" @click="filters.digitalized = s">
+                {{ s === '' ? $t('library.status.all') : s === 'true' ? $t('library.copies.digital') : $t('library.copies.physical') }}
               </button>
             </div>
           </div>
@@ -108,6 +133,7 @@
           <button v-if="activeFilters || filters[quickField]" class="btn ghost sm reset" @click="resetFilters"><vue-feather type="rotate-ccw" size="14" /> {{ $t('library.clearFilters') }}</button>
         </div>
       </transition>
+      </teleport>
     </div>
 
     <!-- Keyed by collection: slides towards the next one when switching -->
@@ -123,51 +149,44 @@
       </div>
 
       <!-- Empty states -->
-      <div v-else-if="!items.length" class="empty">
-        <div class="orb"><vue-feather :type="isFiltered ? 'search' : MEDIA[type].icon" size="26" /></div>
-        <template v-if="isFiltered">
-          <h2 class="display">{{ q ? $t('library.noResults', { q }) : $t('library.noResultsText') }}</h2>
-          <p v-if="q">{{ $t('library.noResultsText') }}</p>
-          <div class="row">
-            <button class="btn" @click="q = ''; resetFilters()">{{ $t('library.clearFilters') }}</button>
-            <router-link v-if="q" class="btn primary" :to="{ path: `/add/${type}/search`, query: { q } }"><vue-feather type="globe" size="16" /> {{ $t('add.search') }}</router-link>
-          </div>
-        </template>
-        <template v-else>
-          <h2 class="display">{{ $t('library.empty', { media: $t(`media.${type}`).toLowerCase() }) }}</h2>
-          <p>{{ $t('library.emptyText') }}</p>
-          <div class="row wrap center">
-            <router-link class="btn primary" :to="`/add/${type}/scan`"><vue-feather type="maximize" size="16" /> {{ $t('add.scan') }}</router-link>
-            <button class="btn" @click="store.addOpen = true"><vue-feather type="plus" size="16" /> {{ $t('nav.add') }}</button>
-          </div>
-        </template>
-      </div>
+      <EmptyState
+        v-else-if="!items.length && isFiltered" icon="search"
+        :title="q ? $t('library.noResults', { q }) : $t('library.noResultsText')" :text="q ? $t('library.noResultsText') : ''"
+      >
+        <button class="btn" @click="q = ''; resetFilters()">{{ $t('library.clearFilters') }}</button>
+        <router-link v-if="q" class="btn primary" :to="{ path: `/add/${type}/search`, query: { q } }"><vue-feather type="globe" size="16" /> {{ $t('add.search') }}</router-link>
+      </EmptyState>
+      <EmptyState
+        v-else-if="!items.length" :icon="MEDIA[type].icon"
+        :title="$t('library.empty', { media: $t(`media.${type}`).toLowerCase() })" :text="$t('library.emptyText')"
+      >
+        <router-link class="btn primary" :to="`/add/${type}/scan`"><vue-feather type="maximize" size="16" /> {{ $t('add.scan') }}</router-link>
+        <button class="btn" @click="store.addOpen = true"><vue-feather type="plus" size="16" /> {{ $t('nav.add') }}</button>
+      </EmptyState>
 
       <!-- Grid -->
-      <transition-group v-else-if="store.view === 'grid'" tag="div" name="list" class="grid" :class="{ dim: loading }">
+      <!-- New results (filter, search) replace the whole grid at once: animating dozens of leaving cards would stack them up.
+           Cards added by scrolling further still fade in one by one. -->
+      <transition-group v-else-if="store.view === 'grid'" :key="generation" tag="div" name="list" appear class="grid" :class="{ dim: loading }">
         <ItemCard v-for="(item, i) in items" :key="item.id" :item="item" :style="{ transitionDelay: `${Math.min(i, 20) * 18}ms` }" />
       </transition-group>
 
       <!-- List -->
       <div v-else class="rows panel" :class="{ dim: loading }">
-        <router-link v-for="item in items" :key="item.id" :to="`/item/${item.id}`" class="list-row">
-          <div class="thumb" :class="{ sq: item.type === 'music' }">
-            <CoverImage :src="item.cover" :title="item.title" :type="item.type" small />
-            <span v-if="item.consumed" class="done" :title="$t(`consumed.${item.type}`)"></span>
-          </div>
-          <div class="grow">
-            <div class="clamp-2 strong" :title="item.title">{{ item.title }}</div>
-            <!-- {author} · {saga} #{volume} · {year} -->
-            <MetaLine class="muted small" :groups="metaGroups(item)" />
-          </div>
-          <span v-if="item.category" class="chip static hide-sm">{{ $te(`category.${item.type}.${item.category}`) ? $t(`category.${item.type}.${item.category}`) : item.category }}</span>
-          <span v-if="item.format" class="chip static hide-sm">{{ $t(`format.${item.format}`) }}</span>
-          <!-- Family: whose item it is -->
-          <span
-            v-if="!item.mine && item.owner" class="owner-mark" :style="{ background: personColor(item.owner.id) }"
-            :title="$t('item.ownedBy', { name: item.owner.name })" :aria-label="$t('item.ownedBy', { name: item.owner.name })"
-          >{{ initial(item.owner) }}</span>
-        </router-link>
+        <ItemRow v-for="item in items" :key="item.id" as="router-link" :to="`/item/${item.id}`" :item="item" thumb class="list-row">
+          <template #thumb><span v-if="item.consumed" class="done" :title="$t(`consumed.${item.type}`)"></span></template>
+          <template #end>
+            <!-- Games: the platform already leads the meta line -->
+            <span v-if="item.category && item.type !== 'videogame'" class="chip static hide-sm">{{ $te(`category.${item.type}.${item.category}`) ? $t(`category.${item.type}.${item.category}`) : item.category }}</span>
+            <span v-if="item.format" class="chip static hide-sm">{{ $t(`format.${item.format}`) }}</span>
+            <vue-feather v-if="item.digitalized" type="cloud" size="14" class="digital-mark" :title="$t('fields.digitalized')" />
+            <!-- Family: whose item it is -->
+            <span
+              v-if="!item.mine && item.owner" class="owner-mark" :style="{ background: personColor(item.owner.id) }"
+              :title="$t('item.ownedBy', { name: item.owner.name })" :aria-label="$t('item.ownedBy', { name: item.owner.name })"
+            >{{ initial(item.owner) }}</span>
+          </template>
+        </ItemRow>
       </div>
       </div>
     </transition>
@@ -187,23 +206,23 @@
 
 <script>
 import ItemCard from '../components/ItemCard.vue'
-import CoverImage from '../components/CoverImage.vue'
+import ItemRow from '../components/ItemRow.vue'
+import EmptyState from '../components/EmptyState.vue'
 import AppLogo from '../components/AppLogo.vue'
 import InstallHint from '../components/InstallHint.vue'
 import { api, qs } from '../lib/api.js'
 import { store } from '../lib/store.js'
 import { toastError } from '../lib/toast.js'
 import { MEDIA } from '../../shared/media.js'
-import { metaGroups } from '../lib/format.js'
-import MetaLine from '../components/MetaLine.vue'
 import { personColor, initial } from '../lib/people.js'
 
 const PAGE = 48
-const emptyFilters = () => ({ category: '', consumed: '', format: '', genre: '', owner: '', sort: 'recent' })
+// owner: whose items (in a family), the user's saved choice (store.owner)
+const emptyFilters = (owner = store.owner) => ({ category: '', consumed: '', digitalized: '', format: '', genre: '', owner, sort: 'title' })
 
 export default {
   name: 'LibraryView',
-  components: { ItemCard, CoverImage, AppLogo, InstallHint, MetaLine },
+  components: { ItemCard, ItemRow, EmptyState, AppLogo, InstallHint },
   data() {
     return {
       store,
@@ -216,6 +235,9 @@ export default {
       loading: true,
       done: false,
       members: [],
+      stuck: false, // the search bar is pinned to the top
+      generation: 0, // bumped when new results replace the grid
+      searchFocused: false,
       seq: 0,
       direction: 'next',
       facets: { category: [], format: [] },
@@ -230,7 +252,7 @@ export default {
     formats() { return MEDIA[this.type].formats },
     genres() { return MEDIA[this.type].genres },
     sorts() {
-      const base = ['recent', 'title', 'author', 'release']
+      const base = ['title', 'author', 'release', 'recent']
       return MEDIA[this.type].fields.includes('saga') ? [...base, 'saga'] : base
     },
     quickField() { return MEDIA[this.type].quickFilter },
@@ -247,9 +269,12 @@ export default {
     /** Filters of the panel (the quick bar's own value is visible, so not counted in the badge). */
     activeFilters() {
       const f = this.filters
-      const fields = ['category', 'consumed', 'format', 'genre', 'owner'].filter((k) => k !== this.quickField)
-      return [...fields.map((k) => f[k]), f.sort !== 'recent' ? 1 : ''].filter(Boolean).length
+      const fields = ['category', 'consumed', 'digitalized', 'format', 'genre'].filter((k) => k !== this.quickField)
+      // Owner: counted when it is not the default (own items in a family, everyone otherwise)
+      return [...fields.map((k) => f[k]), f.sort !== 'title' ? 1 : '', f.owner !== this.defaultOwner ? 1 : ''].filter(Boolean).length
     },
+    otherView() { return store.view === 'grid' ? 'list' : 'grid' },
+    defaultOwner() { return store.user?.family ? store.user.id : '' },
     quickVisible() { return this.quickValues.length > 0 && !this.leaving },
     countText() {
       const done = this.stats.consumed && !this.isFiltered ? ` · ${this.$t(`library.done.${this.type}`, this.stats.consumed)}` : ''
@@ -264,6 +289,11 @@ export default {
       immediate: true,
       // Lets the floating add button and the page padding make room for the quick bar.
       handler(v) { document.documentElement.style.setProperty('--quickbar', v ? '44px' : '0px') },
+    },
+    // A different owner is remembered on this device (counts and quick bar follow)
+    'filters.owner'(owner) {
+      store.setOwner(owner)
+      this.fetchFacets()
     },
     'filters.category'() { this.$nextTick(this.revealQuick) },
     'filters.format'() { this.$nextTick(this.revealQuick) },
@@ -303,16 +333,28 @@ export default {
       if (entries[0].isIntersecting && !this.loading && !this.done) this.fetch(false)
     }, { rootMargin: '600px' })
     this.io.observe(this.$refs.sentinel)
+    this.stickIo = new IntersectionObserver(([e]) => { this.stuck = !e.isIntersecting })
+    this.stickIo.observe(this.$refs.stickAt)
+    // Covers found in the background ("Find the covers") appear as they arrive.
+    this.onCover = (e) => {
+      const item = this.items.find((i) => i.id === e.detail.id)
+      if (item) item.cover = e.detail.cover
+    }
+    window.addEventListener('collector:cover', this.onCover)
     if (store.user.family) {
       const { family } = await api.get('/family').catch(() => ({}))
       this.members = family?.members || []
+      // A remembered member who has left the family: back to the default
+      if (this.filters.owner && !this.members.some((m) => m.id === this.filters.owner)) this.filters.owner = this.defaultOwner
     }
   },
   beforeUnmount() {
     this.mq?.removeEventListener('change', this.onMq)
     document.documentElement.style.setProperty('--quickbar', '0px')
     window.removeEventListener('keydown', this.onKey)
+    window.removeEventListener('collector:cover', this.onCover)
     this.io?.disconnect()
+    this.stickIo?.disconnect()
     clearTimeout(this.debounce)
   },
   methods: {
@@ -323,7 +365,12 @@ export default {
       try {
         const data = await api.get(`/items${qs({ type: this.type, q: this.q.trim(), ...this.filters, limit: PAGE, offset })}`)
         if (seq !== this.seq) return
-        this.items = reset ? data.items : [...this.items, ...data.items]
+        if (reset) {
+          this.items = data.items
+          this.generation++
+        } else {
+          this.items = [...this.items, ...data.items]
+        }
         this.total = data.total
         this.done = this.items.length >= data.total
         if (reset && !this.isFiltered) {
@@ -337,7 +384,7 @@ export default {
     },
     async fetchFacets() {
       const type = this.type
-      const { facets } = await api.get(`/items/facets${qs({ type })}`).catch(() => ({ facets: null }))
+      const { facets } = await api.get(`/items/facets${qs({ type, owner: this.filters.owner })}`).catch(() => ({ facets: null }))
       if (facets && type === this.type) this.facets = facets
     },
     quickLabel(value) {
@@ -350,10 +397,14 @@ export default {
     switchType(type) {
       this.$router.push({ path: `/c/${type}`, query: this.q ? { q: this.q } : {} })
     },
-    metaGroups,
     personColor,
     initial,
-    resetFilters() { this.filters = emptyFilters() },
+    toggleFilters() {
+      this.showFilters = !this.showFilters
+      // Desktop, opened from further down the shelf: bring the panel up, right under the pinned bar (phones: it floats)
+      if (this.showFilters && this.stuck && !this.mobile) window.scrollTo({ top: this.$refs.stickAt.offsetTop, behavior: 'smooth' })
+    },
+    resetFilters() { this.filters = emptyFilters(this.defaultOwner) },
     genreLabel(g) { return this.$te(`genre.${this.type}.${g}`) ? this.$t(`genre.${this.type}.${g}`) : g },
     shortcut(e) {
       const tag = document.activeElement?.tagName
@@ -397,7 +448,10 @@ export default {
 .quick-enter-from, .quick-leave-to { transform: translateY(100%); opacity: 0; }
 /* Keeps the page height while one collection leaves and the next enters */
 .shelf { min-height: 60vh; }
-.top { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+.top { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; }
+.below { display: flex; flex-direction: column; gap: 10px; margin: 10px 0 18px; }
+.below:empty { display: none; }
+.stick-at { height: 0; }
 .title-row { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .title-row h1 { font-size: clamp(22px, 3vw, 30px); }
 .count { margin: 0; font-size: 12.5px; }
@@ -407,12 +461,21 @@ export default {
   margin-right: 5px; animation: badge-in 0.3s var(--spring);
 }
 @keyframes badge-in { from { transform: scale(0.6); opacity: 0; } }
-.searchbar { display: flex; gap: 6px; align-items: center; position: sticky; top: 8px; z-index: 10; }
-.searchbar .input { background: color-mix(in oklab, var(--surface-solid) 88%, transparent); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+.searchbar {
+  display: flex; gap: 6px; align-items: center; position: sticky; top: 0; z-index: 10;
+  /* Full width of the page, so nothing shows through around it once stuck */
+  margin: 0 calc(-1 * var(--gutter)); padding: calc(8px + env(safe-area-inset-top, 0px)) var(--gutter) 8px;
+  border-bottom: 1px solid transparent; transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+.searchbar.stuck {
+  background: color-mix(in oklab, var(--bg) 84%, transparent); backdrop-filter: blur(16px);
+  border-bottom-color: var(--border); box-shadow: 0 10px 30px -18px rgb(0 0 0 / 0.6);
+}
+.searchbar .input { background: color-mix(in oklab, var(--surface-solid) 88%, transparent); backdrop-filter: blur(16px); }
 .kbd-hint { margin-right: 6px; }
 /* App mark, mobile only (the desktop sidebar already shows it) */
 .logo { display: none; flex: none; width: 26px; height: 32px; margin: 0 4px 0 2px; }
-.filter-btn { width: var(--h-lg); height: var(--h-lg); position: relative; background: color-mix(in oklab, var(--surface-solid) 88%, transparent); }
+.filter-btn, .view-btn { width: var(--h-lg); height: var(--h-lg); position: relative; flex: none; background: color-mix(in oklab, var(--surface-solid) 88%, transparent); }
 .view-toggle { flex: none; background: color-mix(in oklab, var(--surface-solid) 88%, transparent); }
 .view-toggle button { height: 32px; width: 32px; padding: 0; justify-content: center; }
 .dot {
@@ -421,6 +484,7 @@ export default {
 }
 .filters { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; align-items: end; padding: 14px; }
 .filters .full { grid-column: 1 / -1; }
+.filters-anchor { display: contents; }
 .filters .reset { justify-self: start; }
 
 .grid {
@@ -448,14 +512,10 @@ export default {
 .sk .short { width: 60%; }
 
 .rows { padding: 4px; }
-.list-row { display: flex; align-items: center; gap: 12px; padding: 6px 8px; border-radius: var(--r); transition: background 0.15s; }
-.list-row:hover { background: var(--surface-2); }
 .list-row + .list-row { box-shadow: 0 -1px 0 var(--border); }
-.thumb { position: relative; width: 34px; aspect-ratio: 2 / 3; border-radius: var(--r-xs); overflow: hidden; flex: none; }
 /* Same "completed" bar as the grid cards */
-.thumb .done { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--accent); box-shadow: 0 0 6px var(--accent); }
-.thumb.sq { aspect-ratio: 1; }
-.strong { font-weight: 600; font-size: 13.5px; }
+.done { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+.digital-mark { flex: none; color: var(--faint); }
 .owner-mark {
   flex: none; width: 22px; height: 22px; border-radius: var(--r-xs); display: grid; place-items: center;
   font-size: 11px; font-weight: 700; color: #fff;
@@ -465,6 +525,7 @@ export default {
 .shortcuts { text-align: center; font-size: 11.5px; }
 .center { justify-content: center; }
 
+@keyframes scrim-in { from { opacity: 0; } }
 @media (max-width: 899px) {
   .logo { display: block; }
   /* No magnifier on mobile: the logo already anchors the field, the text gets the room */
@@ -474,21 +535,30 @@ export default {
   .quickbar {
     position: fixed; left: 0; right: 0; bottom: calc(var(--bottom-nav) + var(--safe-bottom)); height: 44px; z-index: 29;
     display: flex; align-items: center; padding: 0 12px; border-top: 1px solid var(--border);
-    background: color-mix(in oklab, var(--bg-2) 92%, transparent); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    background: color-mix(in oklab, var(--bg-2) 92%, transparent); backdrop-filter: blur(16px);
   }
   .quickbar .chips { padding: 2px 0; }
+  /* The filters float under the bar, over the list */
+  .filters.floating {
+    position: absolute; top: calc(100% + 4px); left: var(--gutter); right: var(--gutter); z-index: 2;
+    max-height: calc(100dvh - var(--bottom-nav) - var(--quickbar, 0px) - 110px - var(--safe-bottom)); overflow-y: auto;
+    background: var(--surface-solid); box-shadow: var(--shadow-lg);
+  }
+  .filters-scrim { position: absolute; left: 0; right: 0; top: 100%; height: 100dvh; z-index: 1; background: rgb(0 0 0 / 0.35); animation: scrim-in 0.2s ease both; }
+  /* No band above the bar: it starts at the top, and stays there once pinned */
+  .library { padding-top: 0; }
+  .top { margin-bottom: 0; }
+  .top:has(> .install) { padding-top: calc(8px + env(safe-area-inset-top, 0px)); }
   .title-row { display: none; }
   /* Starts where the search text starts: logo (2 + 26 + 4) + gap (6) + input padding (12) */
   .count-badge { display: inline-flex; }
-  /* Room for the count badge (and the clear button while typing) */
-  .searchbar .input-wrap > .input { padding-right: 72px; }
+  /* Room for the count badge, or the clear button in its place while typing */
+  .searchbar .input-wrap > .input { padding-right: 44px; text-overflow: ellipsis; }
   .kbd-hint { display: none; }
 }
 @media (max-width: 600px) {
   .hide-sm { display: none !important; }
-  .page { padding-top: 12px; }
-  .top { gap: 8px; margin-bottom: 14px; }
+  .top { gap: 8px; }
   .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 10px; }
-  .view-toggle button { width: 30px; }
 }
 </style>

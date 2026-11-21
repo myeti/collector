@@ -36,7 +36,7 @@ export default {
 <style scoped>
 .sheet-backdrop {
   position: fixed; inset: 0; z-index: 500; display: flex; align-items: flex-end; justify-content: center;
-  background: rgb(0 0 0 / 0.55); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(6px);
+  background: rgb(0 0 0 / 0.55); backdrop-filter: blur(5px);
   animation: fadein 0.25s var(--ease);
 }
 .sheet {

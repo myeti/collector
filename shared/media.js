@@ -45,9 +45,11 @@ export function matchPlatform(raw) {
   return null
 }
 
+// description: synopsis from metadata sources. comment: the user's own note, never filled by sources.
+// digitalized: owned as a digital copy (ebook, files, digital game…) rather than a physical one.
 export const COMMON_FIELDS = [
-  'title', 'original_title', 'author', 'cover', 'genre', 'category',
-  'release_date', 'condition', 'barcode', 'consumed', 'comment',
+  'title', 'author', 'cover', 'genre', 'category',
+  'release_date', 'condition', 'barcode', 'consumed', 'digitalized', 'description', 'comment',
 ]
 
 export const MEDIA = {
@@ -90,7 +92,7 @@ export const MEDIA = {
   videogame: {
     icon: 'monitor',
     quickFilter: 'category',
-    fields: ['editor', 'saga', 'volume'],
+    fields: ['saga', 'volume'],
     categories: PLATFORM_GROUPS.flatMap((g) => g.platforms),
     genres: [
       'action', 'adventure', 'rpg', 'strategy', 'simulation', 'sports', 'racing', 'puzzle',

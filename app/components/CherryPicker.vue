@@ -49,7 +49,7 @@
           <div class="flabel">{{ fieldLabel(f.field) }}</div>
           <div class="fvals">
             <button
-              v-for="(o, i) in f.options" :key="i" class="val" :class="{ on: pick[f.field] === o.value, long: f.field === 'comment' }"
+              v-for="(o, i) in f.options" :key="i" class="val" :class="{ on: pick[f.field] === o.value, long: f.field === 'description' }"
               :title="o.sources.join(', ')" @click="pick[f.field] = pick[f.field] === o.value ? null : o.value"
             >
               <span class="v-text">{{ display(f.field, o.value) }}</span>
@@ -63,7 +63,7 @@
       </div>
     </section>
 
-    <div class="cta" :class="{ inline: applyMode }">
+    <div class="action-bar cta" :class="{ inline: applyMode }">
       <slot name="before-cta" />
       <button v-if="applyMode" class="btn primary" :disabled="!pick.title" @click="emit('done')">
         <vue-feather type="check" size="15" /> {{ $t('lookup.apply') }}
@@ -83,9 +83,9 @@
 <script>
 import CoverImage from './CoverImage.vue'
 import { fieldsFor } from '../../shared/media.js'
+import { norm } from '../../shared/text.js'
 
-const SKIP = new Set(['cover', 'consumed', 'condition'])
-const norm = (v) => String(v).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim()
+const SKIP = new Set(['cover', 'consumed', 'digitalized', 'condition'])
 
 export default {
   name: 'CherryPicker',
@@ -96,11 +96,17 @@ export default {
     /** Values that exist before picking (scanned barcode, photo cover…). */
     preset: { type: Object, default: () => ({}) },
     presetCoverLabel: String,
+    /** How preset values are tagged ("Current" when completing an existing item). */
+    presetLabel: { type: String, default: '✦' },
+    /** Keep preset values selected by default (completing an item: fill gaps, don't overwrite). */
+    preferPreset: Boolean,
     applyMode: Boolean,
     saving: Boolean,
+    /** Picks to restore (back from the form), instead of the automatic ones. */
+    initial: { type: Object, default: null },
   },
-  // done: continue to the form to verify · save: store the picked fields right away
-  emits: ['done', 'save'],
+  // done: continue to the form · save: store the picked fields right away · change: the picks changed (duplicate check)
+  emits: ['done', 'save', 'change'],
   data: () => ({ pick: {}, takenFrom: null, broken: [] }),
   computed: {
     fieldOptions() {
@@ -118,7 +124,7 @@ export default {
           // Prefer the most precise date among equivalent ones
           if (field === 'release_date' && String(value).length > o.value.length) o.value = String(value)
         }
-        add(this.preset[field], '✦')
+        add(this.preset[field], this.presetLabel)
         this.candidates.forEach((c) => add(c.fields[field], c.sourceName))
         // Merge partial dates into the full date that contains them ("2013" ⊂ "2013-05-17")
         if (field === 'release_date') {
@@ -140,21 +146,26 @@ export default {
         if (existing) existing.sources.push(source)
         else list.push({ url, sources: [source], label })
       }
-      add(this.preset.cover, '✦', this.presetCoverLabel)
+      add(this.preset.cover, this.presetLabel, this.presetCoverLabel)
       this.candidates.forEach((c) => add(c.fields.cover, c.sourceName))
       return list
     },
   },
   watch: {
     candidates: { immediate: true, handler() { this.autoPick() } },
+    pick: { deep: true, immediate: true, handler() { this.$emit('change', this.picked()) } },
   },
   methods: {
     /** Default: the value most sources agree on (presets first on ties). */
     autoPick() {
       const pick = {}
-      for (const f of this.fieldOptions) pick[f.field] = f.options[0].value
+      for (const f of this.fieldOptions) {
+        const current = this.preferPreset && f.options.find((o) => o.sources.includes(this.presetLabel))
+        pick[f.field] = (current || f.options[0]).value
+      }
       pick.cover = this.covers[0]?.url || null
-      this.pick = pick
+      this.pick = this.initial && !this.restored ? { ...pick, cover: null, ...this.initial } : pick
+      this.restored = true
       this.takenFrom = null
     },
     takeAll(i) {
@@ -174,6 +185,7 @@ export default {
     },
     fieldLabel(f) {
       if (f === 'author') return this.$t(`fields.authorBy.${this.type}`)
+      if (f === 'volume' && this.$te(`fields.volumeBy.${this.type}`)) return this.$t(`fields.volumeBy.${this.type}`)
       if (f === 'category' && this.$te(`fields.categoryBy.${this.type}`)) return this.$t(`fields.categoryBy.${this.type}`)
       if (f === 'editor' && this.$te(`fields.editorBy.${this.type}`)) return this.$t(`fields.editorBy.${this.type}`)
       return this.$t(`fields.${f}`)
@@ -182,10 +194,13 @@ export default {
       const key = field === 'format' ? `format.${value}` : ['category', 'genre'].includes(field) ? `${field}.${this.type}.${value}` : null
       return key && this.$te(key) ? this.$t(key) : value
     },
-    emit(event) {
+    picked() {
       const out = {}
       for (const [k, v] of Object.entries(this.pick)) if (v !== null && v !== undefined) out[k] = v
-      this.$emit(event, out, this.$refs.save)
+      return out
+    },
+    emit(event) {
+      this.$emit(event, this.picked(), this.$refs.save)
     },
   },
 }
@@ -242,15 +257,12 @@ export default {
 .v-src { flex: none; font-size: 9.5px; font-weight: 650; padding: 1px 5px; border-radius: var(--r-xs); background: var(--surface-2); color: var(--faint); display: inline-flex; align-items: center; gap: 3px; }
 .val.on .v-src { background: color-mix(in oklab, var(--accent) 25%, transparent); color: var(--accent-ink); }
 
-.cta { position: sticky; bottom: calc(var(--bottom-nav) + 12px + var(--safe-bottom)); display: flex; justify-content: flex-end; gap: 6px; flex-wrap: wrap; z-index: 5; }
-.cta .btn.primary { box-shadow: 0 12px 30px -10px var(--accent-glow); }
-.cta :slotted(.btn:not(.primary)), .cta .verify { background: var(--surface-solid); box-shadow: var(--shadow); }
-@media (min-width: 900px) { .cta { bottom: 16px; } }
+.cta { margin-top: 0; }
+/* In a sheet: the sheet scrolls, no bottom bar to clear */
 .cta.inline { bottom: 0; }
 @media (max-width: 600px) {
   .frow { grid-template-columns: 1fr; gap: 6px; }
   .flabel { padding-top: 0; }
-  .cta .btn.primary { flex: 1; }
 }
 @keyframes rise { from { opacity: 0; transform: translateY(10px); } }
 </style>

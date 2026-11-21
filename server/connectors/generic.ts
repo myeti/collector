@@ -39,7 +39,7 @@ const upcitemdb: Connector = {
     const data = await fetchJson(url, { headers: key ? { user_key: key, key_type: '3scale' } : {} })
     return take(data?.items, 3).map((it: any) => candidate(this, ctx.type, {
       title: it.title,
-      editor: ctx.type === 'videogame' || ctx.type === 'custom' ? it.brand : undefined,
+      editor: ctx.type === 'custom' ? it.brand : undefined,
       barcode: code,
       cover: it.images?.[0],
       ...guessFormat(`${it.title} ${it.category || ''}`, ctx),
@@ -83,7 +83,6 @@ const goUpc: Connector = {
     if (!p?.name) return []
     return [candidate(this, ctx.type, {
       title: p.name,
-      editor: ctx.type === 'videogame' ? p.brand : undefined,
       barcode: code,
       cover: p.imageUrl,
       ...guessFormat(`${p.name} ${p.category || ''}`, ctx),

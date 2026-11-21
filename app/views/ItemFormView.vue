@@ -3,6 +3,12 @@
     <div class="page-head">
       <button class="icon-btn" :aria-label="$t('common.back')" @click="back"><vue-feather type="arrow-left" size="16" /></button>
       <h1 class="display grow truncate">{{ editing ? $t('item.edit') : $t('item.new', { media: $t(`media.one.${form.type}`) }) }}</h1>
+      <button
+        v-if="!loading" type="button" class="btn sm improve" :disabled="!(form.title.trim() || form.barcode || form.isbn)"
+        @click="improve"
+      >
+        <vue-feather type="globe" size="14" /> {{ $t('item.improve') }}
+      </button>
     </div>
 
     <div v-if="loading" class="skeleton" style="height: 400px"></div>
@@ -14,7 +20,7 @@
           <CoverImage :src="form.cover" :title="form.title || '?'" :type="form.type" />
           <span class="cover-overlay">
             <vue-feather :type="coverBusy ? 'loader' : 'camera'" size="18" :class="{ spin: coverBusy }" />
-            <span>{{ coverBusy ? (store.llmEnabled && !editing ? $t('photo.reading') : $t('photo.uploading')) : $t('item.coverHint') }}</span>
+            <span>{{ coverBusy ? $t('item.coverUploading') : $t('item.coverHint') }}</span>
           </span>
           <input type="file" accept="image/*" hidden :disabled="coverBusy" @change="onCover" />
         </label>
@@ -22,12 +28,12 @@
           <button type="button" class="btn ghost sm" @click="askUrl"><vue-feather type="link" size="14" /> URL</button>
           <button v-if="form.cover" type="button" class="btn ghost sm danger" @click="form.cover = null"><vue-feather type="x" size="14" /> {{ $t('common.remove') }}</button>
         </div>
-        <p v-if="store.llmEnabled && !editing" class="hint center"><vue-feather type="cpu" size="12" /> {{ $t('item.readCover') }}</p>
       </aside>
 
       <!-- Fields -->
       <div class="fields-col">
-        <MediaSwitcher v-if="!editing && !from" v-model="form.type" :types="store.enabledTypes" :counts="false" class="type-switch" />
+        <MediaSwitcher v-if="!editing && from !== 'review'" v-model="form.type" :types="store.enabledTypes" :counts="false" class="type-switch" />
+        <DuplicateBanner :duplicate="duplicate" />
 
         <div class="panel">
           <div class="form-grid">
@@ -38,10 +44,6 @@
             <div class="field">
               <label for="f-author">{{ $t(`fields.authorBy.${form.type}`) }}</label>
               <input id="f-author" v-model="form.author" class="input" list="dl-author" autocomplete="off" @focus="suggest('author')" />
-            </div>
-            <div class="field">
-              <label for="f-original">{{ $t('fields.original_title') }}</label>
-              <input id="f-original" v-model="form.original_title" class="input" autocomplete="off" />
             </div>
 
             <!-- Media-specific -->
@@ -54,11 +56,22 @@
                   </button>
                 </div>
               </div>
-              <div v-else class="field" :class="{ narrow: f === 'volume' }">
+              <!-- Saga and its volume share a row (about 3/4 – 1/4) -->
+              <div v-else-if="f === 'saga'" class="field full saga-row">
+                <div class="field">
+                  <label for="f-saga">{{ fieldLabel('saga') }}</label>
+                  <input id="f-saga" v-model="form.saga" class="input" autocomplete="off" list="dl-saga" @focus="suggest('saga')" />
+                </div>
+                <div class="field">
+                  <label for="f-volume">{{ fieldLabel('volume') }}</label>
+                  <input id="f-volume" v-model="form.volume" class="input" autocomplete="off" inputmode="numeric" />
+                </div>
+              </div>
+              <div v-else-if="f !== 'volume'" class="field">
                 <label :for="`f-${f}`">{{ fieldLabel(f) }}</label>
                 <input
                   :id="`f-${f}`" v-model="form[f]" class="input" autocomplete="off"
-                  :class="{ mono: f === 'isbn' }" :inputmode="f === 'isbn' || f === 'volume' ? 'numeric' : undefined"
+                  :class="{ mono: f === 'isbn' }" :inputmode="f === 'isbn' ? 'numeric' : undefined"
                   :list="SUGGESTABLE.includes(f) ? `dl-${f}` : undefined" @focus="suggest(f)"
                 />
               </div>
@@ -130,15 +143,27 @@
               </span>
               <span class="switch"><input v-model="form.consumed" type="checkbox" /><span></span></span>
             </label>
+            <label class="field full consumed-row">
+              <span class="grow">
+                <strong>{{ $t('fields.digitalized') }}</strong>
+                <span class="hint">{{ $t('fields.digitalizedHint') }}</span>
+              </span>
+              <span class="switch"><input v-model="form.digitalized" type="checkbox" /><span></span></span>
+            </label>
 
             <div class="field full">
+              <label for="f-description">{{ $t('fields.description') }}</label>
+              <textarea id="f-description" v-model="form.description" class="textarea" rows="4"></textarea>
+            </div>
+            <div class="field full">
               <label for="f-comment">{{ $t('fields.comment') }}</label>
-              <textarea id="f-comment" v-model="form.comment" class="textarea" rows="3"></textarea>
+              <textarea id="f-comment" v-model="form.comment" class="textarea" rows="2"></textarea>
+              <span class="hint">{{ $t('fields.commentHint') }}</span>
             </div>
           </div>
         </div>
 
-        <div class="actions">
+        <div class="action-bar form-actions">
           <button type="button" class="btn ghost lg" @click="back">{{ $t('common.cancel') }}</button>
           <button ref="saveBtn" class="btn primary lg" :disabled="saving">
             <vue-feather :type="saving ? 'loader' : 'check'" size="16" :class="{ spin: saving }" /> {{ $t('common.save') }}
@@ -155,11 +180,12 @@
       <BarcodeScanner @detected="onScanned" />
     </Sheet>
 
-    <Sheet v-if="coverResult" wide :title="$t('lookup.pickTitle')" @close="coverResult = null">
-      <p class="muted pick-text">{{ $t('lookup.pickText') }}</p>
-      <CherryPicker
-        apply-mode :type="form.type" :candidates="coverResult.candidates" :preset="{ cover: coverResult.cover }"
-        :preset-cover-label="$t('lookup.yourPhoto')" @done="applyPicked"
+    <!-- Search sources (manual entry, existing item): the same review as the add methods; current values stay selected -->
+    <Sheet v-if="improving" wide :title="$t('item.improveTitle')" @close="improving = null">
+      <p class="muted pick-text">{{ $t('item.improveText') }}</p>
+      <ItemReview
+        apply :type="form.type" :query="improving.query" :preset="improving.preset" :exclude="editing ? $route.params.id : undefined"
+        :preset-label="$t('lookup.current')" :preset-cover-label="$t('lookup.current')" @apply="applyImproved"
       />
     </Sheet>
   </div>
@@ -170,24 +196,27 @@ import CoverImage from '../components/CoverImage.vue'
 import MediaSwitcher from '../components/MediaSwitcher.vue'
 import Sheet from '../components/Sheet.vue'
 import BarcodeScanner from '../components/BarcodeScanner.vue'
-import CherryPicker from '../components/CherryPicker.vue'
+import ItemReview from '../components/ItemReview.vue'
+import DuplicateBanner from '../components/DuplicateBanner.vue'
+import { duplicateWatcher } from '../lib/duplicates.js'
 import { api, qs } from '../lib/api.js'
 import { store } from '../lib/store.js'
 import { toast, toastError } from '../lib/toast.js'
 import { sparkle } from '../lib/sparkle.js'
 import { MEDIA, CONDITIONS, ALL_FIELDS, PLATFORM_GROUPS } from '../../shared/media.js'
-import { markBulk } from '../lib/bulk.js'
+import { queryText } from '../lib/lookup.js'
+import { currentItem, finishItem, reviewPath } from '../lib/addSession.js'
 
 const SUGGESTABLE = ['author', 'saga', 'editor', 'label', 'director', 'genre', 'category']
 
 function blank(type) {
   const f = Object.fromEntries(ALL_FIELDS.map((k) => [k, null]))
-  return { ...f, type, title: '', consumed: false }
+  return { ...f, type, title: '', consumed: false, digitalized: false }
 }
 
 export default {
   name: 'ItemFormView',
-  components: { CoverImage, MediaSwitcher, Sheet, BarcodeScanner, CherryPicker },
+  components: { CoverImage, MediaSwitcher, Sheet, BarcodeScanner, ItemReview, DuplicateBanner },
   data() {
     return {
       store,
@@ -200,14 +229,14 @@ export default {
       saving: false,
       triedSave: false,
       coverBusy: false,
-      coverResult: null,
+      improving: null, // { query, preset } while "Search sources" is open
+      duplicate: null, // already in the collection? (strict / wide)
       scanning: false,
       customGenre: false,
       suggestions: {},
-      // Add flow this form was reached from (scan, search, photo): the type is already decided.
-      from: null,
-      // Shelf review (from: 'bulk'): which detected item this form completes.
-      bulkId: null,
+      // 'review': editing the item under review in an add session (Save -> next item, Cancel -> back to it)
+      // 'manual': a blank form from the add menu ("Add another" after saving)
+      from: ['review', 'manual'].includes(this.$route.query.from) ? this.$route.query.from : null,
     }
   },
   computed: {
@@ -220,6 +249,11 @@ export default {
     genres() { return MEDIA[this.form.type].genres },
     formats() { return MEDIA[this.form.type].formats },
     conditionIndex() { return CONDITIONS.indexOf(this.form.condition) },
+    /** What the duplicate check looks at */
+    identity() {
+      const f = this.form
+      return { type: f.type, title: f.title.trim(), author: f.author, director: f.director, volume: f.volume, category: f.category, isbn: f.isbn, barcode: f.barcode }
+    },
     dateValid() { return !this.form.release_date || /^\d{4}(-\d{2}(-\d{2})?)?$/.test(this.form.release_date.trim()) },
     genreSelect: {
       get() { return this.form.genre },
@@ -233,6 +267,10 @@ export default {
     },
   },
   watch: {
+    identity: {
+      deep: true,
+      handler(id) { if (!this.loading) this.watchDuplicate(id.type, id, this.editing ? this.$route.params.id : undefined) },
+    },
     'form.type'(t) {
       store.applyAccent(t)
       this.suggestions = {}
@@ -240,6 +278,9 @@ export default {
       if (this.form.category && !MEDIA[t].categories.includes(this.form.category)) this.form.category = null
       if (this.form.format && !MEDIA[t].formats.includes(this.form.format)) this.form.format = null
     },
+  },
+  created() {
+    this.watchDuplicate = duplicateWatcher((dup) => { this.duplicate = dup })
   },
   async mounted() {
     if (this.editing) {
@@ -257,23 +298,25 @@ export default {
       } finally {
         this.loading = false
       }
-    } else if (store.draft?.type === this.form.type) {
-      Object.assign(this.form, store.draft.fields)
-      this.from = store.draft.from || null
-      this.bulkId = store.draft.bulkId ?? null
-      store.draft = null
+    } else if (this.from === 'review') {
+      const item = currentItem()
+      if (!item) return this.$router.replace(reviewPath(this.form.type))
+      Object.assign(this.form, item.picked || {})
     }
     this.syncGenreMode()
+    this.watchDuplicate(this.form.type, this.identity, this.editing ? this.$route.params.id : undefined)
     this.$nextTick(() => { if (!this.editing && !this.form.title) this.$refs.title?.focus() })
   },
   beforeUnmount() { store.applyAccent() },
   methods: {
     back() {
       if (window.history.state?.back) this.$router.back()
+      else if (this.from === 'review') this.$router.replace(reviewPath(this.form.type))
       else this.$router.push(this.editing ? `/item/${this.$route.params.id}` : `/c/${this.form.type}`)
     },
     fieldLabel(f) {
       if (f === 'editor' && this.$te(`fields.editorBy.${this.form.type}`)) return this.$t(`fields.editorBy.${this.form.type}`)
+      if (f === 'volume' && this.$te(`fields.volumeBy.${this.form.type}`)) return this.$t(`fields.volumeBy.${this.form.type}`)
       return this.$t(`fields.${f}`)
     },
     syncGenreMode() {
@@ -300,31 +343,29 @@ export default {
       if (!file) return
       this.coverBusy = true
       const form = new FormData()
+      form.append('file', file)
       try {
-        // New item + AI configured: the cover is also read to suggest metadata.
-        if (store.llmEnabled && !this.editing) {
-          form.append('type', this.form.type)
-          form.append('file', file)
-          const result = await api.post('/lookup/cover', form)
-          this.form.cover = result.cover
-          if (result.candidates.length) this.coverResult = result
-          else if (result.errors.length) toastError({ message: result.errors.map((x) => `${x.source}: ${x.message}`).join(' · ') })
-        } else {
-          form.append('file', file)
-          this.form.cover = (await api.post('/uploads', form)).cover
-        }
+        this.form.cover = (await api.post('/uploads', form)).cover
       } catch (err) {
         toastError(err)
       } finally {
         this.coverBusy = false
       }
     },
-    applyPicked(fields) {
+    /** "Search sources": the item's identifier, else its title, in the review used by every add method. */
+    improve() {
+      const f = this.form
+      const code = String(f.isbn || f.barcode || '').replace(/[^0-9X]/gi, '')
+      // Current values become the preset: shown as "Current" and selected by default.
+      const preset = Object.fromEntries(Object.entries(f).filter(([k, v]) => v !== null && v !== '' && typeof v !== 'boolean' && typeof v !== 'object' && k !== 'type'))
+      this.improving = { query: { code: code.length >= 8 ? code : undefined, text: queryText(f, f.type) }, preset }
+    },
+    applyImproved(fields) {
+      this.improving = null
       for (const [k, v] of Object.entries(fields)) {
         if (k in this.form) this.form[k] = v
       }
       this.syncGenreMode()
-      this.coverResult = null
       sparkle(this.$refs.title, { count: 12 })
     },
     async save() {
@@ -343,13 +384,9 @@ export default {
         sparkle(this.$refs.saveBtn, { count: 24 })
         toast(this.editing ? this.$t('item.updated') : this.$t('item.created'), { icon: this.editing ? 'check' : 'star' })
         store.refreshStats()
-        if (this.from === 'bulk') {
-          // Back to the shelf review, which continues with the next item.
-          markBulk(this.bulkId, 'added', item.id)
-          this.$router.replace(`/bulk/${item.type}`)
-        } else {
-          this.$router.replace({ path: `/item/${item.id}`, query: this.from ? { from: this.from } : {} })
-        }
+        // Under review: on to the next item (or this one's page when it was alone)
+        if (this.from === 'review') finishItem(this.$router, 'added', item.id)
+        else this.$router.replace({ path: `/item/${item.id}`, query: this.from ? { from: this.from } : {} })
       } catch (e) {
         toastError(e)
       } finally {
@@ -378,6 +415,8 @@ export default {
 .cover-drop:not(.has) .cover-overlay, .cover-drop:hover .cover-overlay, .cover-drop.busy .cover-overlay { opacity: 1; }
 .cover-drop:not(.has):not(:hover) .cover-overlay { background: rgb(10 10 12 / 0.25); backdrop-filter: none; }
 .cover-actions { display: flex; justify-content: center; gap: 2px; }
+.saga-row { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 1fr); gap: 12px; }
+.improve { flex: none; }
 .center { text-align: center; display: flex; align-items: center; justify-content: center; gap: 4px; margin: 0; }
 .fields-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .type-switch { align-self: flex-start; }
@@ -395,16 +434,13 @@ export default {
 .consumed-row { flex-direction: row; align-items: center; gap: 12px; padding: 10px 12px; border-radius: var(--r); background: var(--surface); border: 1px solid var(--border); cursor: pointer; }
 .consumed-row strong { font-size: 13.5px; font-weight: 600; }
 .consumed-row .grow { display: flex; flex-direction: column; }
-.actions { display: flex; justify-content: flex-end; gap: 8px; position: sticky; bottom: calc(var(--bottom-nav) + 12px + var(--safe-bottom)); z-index: 5; }
-.actions .btn.primary { box-shadow: 0 12px 30px -10px var(--accent-glow); }
-.actions .btn.ghost { background: var(--surface-solid); border-color: var(--border); box-shadow: var(--shadow); }
+.form-actions { margin-top: 0; flex-wrap: nowrap; }
 .pick-text { margin: 0 0 14px; font-size: 13px; }
-@media (min-width: 900px) { .actions { bottom: 16px; } }
 @media (max-width: 760px) {
   .layout { grid-template-columns: 1fr; gap: 16px; }
   .cover-col { position: static; width: min(36vw, 140px); margin: 0 auto; }
   .type-switch { align-self: stretch; }
   .cond { padding: 6px 8px; font-size: 11.5px; }
-  .actions .btn.primary { flex: 1; }
+  .form-actions .btn.primary { flex: 1; }
 }
 </style>

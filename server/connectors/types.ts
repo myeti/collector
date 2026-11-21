@@ -1,4 +1,4 @@
-import { matchGenre, MEDIA } from '../../shared/media.js'
+import { matchGenre, MEDIA, fieldsFor } from '../../shared/media.js'
 
 export type MediaType = 'book' | 'music' | 'movie' | 'videogame' | 'custom'
 
@@ -68,7 +68,10 @@ export function candidate(
   url?: string,
 ): Candidate {
   const out: Record<string, any> = {}
+  const allowed = new Set(fieldsFor(type))
   for (const [k, v] of Object.entries(fields)) {
+    // Only fields this media type has: a source returning extra data (e.g. a game publisher) can't leak in.
+    if (!allowed.has(k)) continue
     const val = k === 'release_date' ? normDate(v) : k === 'cover' ? https(v) : clean(v)
     if (val !== undefined) out[k] = val
   }
