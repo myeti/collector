@@ -1,6 +1,6 @@
 {
     "name": "collector",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "type": "module",
     "dependencies": {
         "@ai-sdk/anthropic": "^4.0.107",

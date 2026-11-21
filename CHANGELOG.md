@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-21
+
 ### Fixed
 - Updating from 0.0.1 broke the shelves (server error): new fields need database columns, which the server now adds on start (additive only, nothing is ever removed).
 - A first visit no longer loads the page twice when the offline mode installs.
