@@ -89,9 +89,12 @@ export function initPwa() {
     setInterval(() => reg.update().catch(() => {}), 60 * 60 * 1000)
   }).catch(() => {})
 
+  // A new version taking over (accepted update, or accepted in another tab): reload to run it.
+  // Not on a first visit, when the worker takes control of a page that had none: same version, no reload.
+  const hadController = !!navigator.serviceWorker.controller
   let reloading = false
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (reloading) return
+    if (reloading || !hadController) return
     reloading = true
     window.location.reload()
   })

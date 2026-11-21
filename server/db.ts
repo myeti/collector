@@ -116,6 +116,26 @@ export async function syncDb(options: { alter?: boolean } = {}) {
     console.warn('⚠️  Postgres extension "unaccent" unavailable: search will be accent-sensitive.')
   }
   await sequelize.sync({ alter: options.alter })
+  if (!options.alter) await addMissingColumns()
+}
+
+/**
+ * New fields in an update: adds the columns the models have and the tables lack. sync() alone creates missing
+ * tables but leaves existing ones as they are. Additive only: never drops, renames or changes a column, so it is
+ * safe on every start (unlike sync({ alter }), which also drops columns the models no longer define).
+ */
+async function addMissingColumns() {
+  const qi = sequelize.getQueryInterface()
+  for (const model of Object.values(sequelize.models) as any[]) {
+    const table = model.getTableName()
+    const existing = await qi.describeTable(table)
+    for (const [name, attribute] of Object.entries(model.getAttributes()) as [string, any][]) {
+      const column = attribute.field || name
+      if (existing[column]) continue
+      await qi.addColumn(table, column, attribute)
+      console.log(`🛠  Database: added column ${table}.${column}`)
+    }
+  }
 }
 
 

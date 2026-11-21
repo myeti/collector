@@ -2,7 +2,8 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import express from 'express'
-import type { Request, Response, NextFunction } from 'express'
+import crypto from 'node:crypto'
+import type { Response, NextFunction } from 'express'
 import cookieParser from 'cookie-parser'
 import { config } from './config.ts'
 import { syncDb } from './db.ts'
@@ -94,13 +95,16 @@ if (fs.existsSync(dist)) {
   })
 }
 
-app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+app.use((err: any, req: any, res: Response, _next: NextFunction) => {
   if (err instanceof HttpError) return res.status(err.status).json({ error: err.code, message: err.message })
   if (err?.name === 'MulterError') return res.status(400).json({ error: 'upload_error', message: err.message })
   if (err?.name === 'SequelizeValidationError') return res.status(400).json({ error: 'validation_error', message: err.message })
   if (err?.status && err.status < 500) return res.status(err.status).json({ error: 'bad_request', message: err.message })
-  console.error(err)
-  res.status(500).json({ error: 'server_error' })
+  // A reference ties what the user sees (browser console) to the server log line
+  const ref = crypto.randomBytes(4).toString('hex')
+  console.error(`💥 [${ref}] ${req.method} ${req.originalUrl}${req.user ? ` (user ${req.user.id})` : ''}`, err)
+  // Signed-in users also get the cause: enough to report a problem without access to the server logs
+  res.status(500).json({ error: 'server_error', ref, detail: req.user ? String(err?.message || err).slice(0, 500) : undefined })
 })
 
 try {

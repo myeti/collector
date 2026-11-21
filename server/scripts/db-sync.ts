@@ -1,4 +1,6 @@
-// Usage: npm run db:sync [-- --alter]   (alter updates existing tables to match the models)
+// Usage: npm run db:sync [-- --alter]
+// Without --alter: creates missing tables and adds missing columns (never removes anything; also done on every start).
+// --alter: makes existing tables match the models exactly, dropping columns the models no longer have.
 import { sequelize, syncDb } from '../db.ts'
 
 const alter = process.argv.includes('--alter')

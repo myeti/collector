@@ -5,6 +5,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Fixed
+- Updating from 0.0.1 broke the shelves (server error): new fields need database columns, which the server now adds on start (additive only, nothing is ever removed).
+- A first visit no longer loads the page twice when the offline mode installs.
+- Online lookups are no longer kept in the offline cache.
+
+### Changed
+- Errors are easier to report: every failed request is logged in the browser console with its cause, server errors carry a reference shown in the message and in the server log.
+
 ## [0.1.0] - 2026-11-21
 
 First version.

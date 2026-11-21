@@ -49,7 +49,7 @@ self.addEventListener('fetch', (event) => {
   }
   if (url.pathname.startsWith('/api/')) {
     // Online-only endpoints: lookups (external APIs) and auth flows. /auth/me is kept so the app boots offline.
-    const online = url.pathname.startsWith('/api/lookup/') || (url.pathname.startsWith('/api/auth/') && url.pathname !== '/api/auth/me')
+    const online = url.pathname.startsWith('/api/lookup') || (url.pathname.startsWith('/api/auth/') && url.pathname !== '/api/auth/me')
     if (!online) event.respondWith(networkFirst(request, API))
     return
   }
