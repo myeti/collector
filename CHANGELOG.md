@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-22
+
 ### Changed
 - Fewer per-type fields: every item now has an author, a publisher, a saga and volume, and a format, named for its type:
   - books: author, publisher, format (novel, comic, manga…), ISBN;
