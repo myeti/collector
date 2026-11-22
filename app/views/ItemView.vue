@@ -28,8 +28,9 @@
 
           <div class="info">
             <div class="row wrap chips-top">
-              <span class="badge accent"><vue-feather :type="MEDIA[item.type].icon" size="12" /> {{ categoryLabel || $t(`media.${item.type}`) }}</span>
-              <span v-if="item.format" class="badge">{{ $t(`format.${item.format}`) }}</span>
+              <!-- The item's kind: its category, or its format where there is no category (book kind, game platform) -->
+              <span class="badge accent"><vue-feather :type="MEDIA[item.type].icon" size="12" /> {{ kindLabel || $t(`media.${item.type}`) }}</span>
+              <span v-if="item.format && !formatIsKind" class="badge">{{ formatLabel }}</span>
               <span v-if="item.genre" class="badge">{{ genreLabel }}</span>
               <span v-if="item.digitalized" class="badge"><vue-feather type="cloud" size="12" /> {{ $t('library.copies.digital') }}</span>
             </div>
@@ -122,8 +123,14 @@ export default {
       const from = this.$route.query.from
       return ['scan', 'search', 'photo', 'manual'].includes(from) ? from : null
     },
-    categoryLabel() {
+    formatIsKind() { return !!MEDIA[this.item.type].hidden?.includes('category') },
+    formatLabel() {
+      const f = this.item.format
+      return f && this.$te(`format.${f}`) ? this.$t(`format.${f}`) : f || ''
+    },
+    kindLabel() {
       const i = this.item
+      if (this.formatIsKind) return this.formatLabel
       if (!i.category) return ''
       return this.$te(`category.${i.type}.${i.category}`) ? this.$t(`category.${i.type}.${i.category}`) : i.category
     },
@@ -133,16 +140,14 @@ export default {
     },
     byline() {
       const i = this.item
-      return [i.author, i.type === 'movie' ? i.director : null].filter(Boolean).join(' · ')
+      return i.author || ''
     },
     details() {
       const i = this.item
       const t = (k) => this.$t(`fields.${k}`)
       const rows = [
         ['release_date', this.formatDate(i.release_date)],
-        ['director', i.director],
         ['editor', i.editor, this.$te(`fields.editorBy.${i.type}`) ? this.$t(`fields.editorBy.${i.type}`) : t('editor')],
-        ['label', i.label],
         ['isbn', i.isbn, null, true],
         ['barcode', i.barcode !== i.isbn ? i.barcode : null, null, true],
         ...Object.entries(i.extra || {}).map(([k, v]) => [k, v, k]),

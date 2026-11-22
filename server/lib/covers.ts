@@ -5,12 +5,10 @@ import { importRemoteImage } from './images.ts'
 import { norm, sameAuthor, similarTitle } from './matching.ts'
 import { queryText } from '../../shared/text.js'
 
-const creator = (f: any) => f.author || f.director
-
 /** A wrong cover is worse than none: title, creator, volume (and a movie's year) must agree. */
 function matches(item: any, c: Candidate) {
   const f = c.fields
-  if (!f.cover || !similarTitle(item.title, f.title) || !sameAuthor(creator(item), creator(f))) return false
+  if (!f.cover || !similarTitle(item.title, f.title) || !sameAuthor(item.author, f.author)) return false
   if (item.volume && f.volume && norm(item.volume) !== norm(f.volume)) return false
   const [a, b] = [item.release_date, f.release_date].map((d) => Number(String(d || '').slice(0, 4)))
   return !(item.type === 'movie' && a && b && Math.abs(a - b) > 1)

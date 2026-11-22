@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { Op } from 'sequelize'
 import { Item, User, sequelize, visibleUserIds, hasUnaccent } from '../db.ts'
-import { MEDIA, MEDIA_TYPES, CONDITIONS, fieldsFor } from '../../shared/media.js'
+import { MEDIA_TYPES, CONDITIONS, fieldsFor, allowedValue, defaultFormat } from '../../shared/media.js'
 import { badRequest, forbidden, notFound } from '../lib/http.ts'
 import { importRemoteImage, deleteImage, ownsUpload } from '../lib/images.ts'
 import { serializeItem } from './serializers.ts'
@@ -17,7 +17,7 @@ const SORTS: Record<string, [string, string][]> = {
   saga: [['saga', 'ASC NULLS LAST'], [sequelize.literal(`NULLIF(regexp_replace(volume, '\\D', '', 'g'), '')::int`) as any, 'ASC NULLS LAST'], ['title', 'ASC']],
 }
 
-const SEARCHABLE = ['title', 'author', 'saga', 'editor', 'label', 'director', 'barcode', 'isbn', 'genre', 'category', 'comment']
+const SEARCHABLE = ['title', 'author', 'editor', 'saga', 'barcode', 'isbn', 'genre', 'category', 'format', 'comment']
 
 /** Keeps only the fields that belong to the item's media type, with light validation. */
 export function sanitize(body: any, type: string) {
@@ -29,7 +29,8 @@ export function sanitize(body: any, type: string) {
     if (v === '' || v === undefined) v = null
     if (v !== null) v = String(v).trim()
     if (f === 'condition' && v && !CONDITIONS.includes(v)) throw badRequest('invalid_condition')
-    if (f === 'format' && v && !MEDIA[type].formats.includes(v)) throw badRequest('invalid_format')
+    if (f === 'format' && !allowedValue(type, 'format', v)) throw badRequest('invalid_format')
+    if (f === 'format' && !v) v = defaultFormat(type) // required: cannot be emptied
     if ((f === 'barcode' || f === 'isbn') && v) v = v.replace(/[^0-9X]/gi, '').toUpperCase() || null
     if (f === 'release_date' && v && !/^\d{4}(-\d{2}(-\d{2})?)?$/.test(v)) throw badRequest('invalid_release_date')
     // Covers are our own uploads or web images (downloaded on save): nothing else ends up in <img src>.
@@ -156,7 +157,7 @@ itemsRouter.post('/duplicates', async (req: any, res) => {
 /** Distinct values already used, to power autocompletion (sagas, authors, labels…). */
 itemsRouter.get('/suggestions', async (req: any, res) => {
   const field = String(req.query.field || '')
-  const allowed = ['author', 'saga', 'editor', 'label', 'director', 'genre', 'category']
+  const allowed = ['author', 'editor', 'saga', 'genre', 'category', 'format']
   if (!allowed.includes(field)) throw badRequest('invalid_field')
   const ids = await visibleUserIds(req.user)
   const where: any = { user_id: { [Op.in]: ids }, [field]: { [Op.ne]: null } }
@@ -176,6 +177,7 @@ itemsRouter.post('/', async (req: any, res) => {
   if (!MEDIA_TYPES.includes(type)) throw badRequest('invalid_type')
   const data = sanitize(req.body, type)
   if (!data.title) throw badRequest('title_required')
+  data.format ||= defaultFormat(type) // required where the type has a list
   await prepareCover(data, req.user)
   const item: any = await Item.create({ ...data, type, user_id: req.user.id })
   item.owner = req.user

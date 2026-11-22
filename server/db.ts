@@ -1,6 +1,7 @@
 import { Sequelize, DataTypes, Op } from 'sequelize'
 import type { Model, ModelStatic } from 'sequelize'
 import { config } from './config.ts'
+import { MIGRATIONS } from './migrations/index.ts'
 import { CONDITIONS, MEDIA_TYPES } from '../shared/media.js'
 
 export const sequelize = new Sequelize(config.db.name, config.db.user, config.db.password, {
@@ -60,12 +61,16 @@ export const MagicToken: AnyModel = sequelize.define('magic_token', {
 export const Item: AnyModel = sequelize.define('item', {
   id,
   type: { type: DataTypes.ENUM(...MEDIA_TYPES), allowNull: false },
-  // Common
+  // Common (see COMMON_FIELDS in shared/media.js for what each holds per media type)
   title: { type: DataTypes.STRING(512), allowNull: false },
-  author: { type: DataTypes.STRING(512) },
+  author: { type: DataTypes.STRING(512) }, // author, artist, director, studio
+  editor: { type: DataTypes.STRING(255) }, // publisher, label, studio, brand
   cover: { type: DataTypes.STRING(1024) },
   genre: { type: DataTypes.STRING(128) },
-  category: { type: DataTypes.STRING(128) },
+  category: { type: DataTypes.STRING(128) }, // music, movies, custom
+  format: { type: DataTypes.STRING(32) }, // book kind, music / movie medium, game platform
+  saga: { type: DataTypes.STRING(255) },
+  volume: { type: DataTypes.STRING(32) },
   release_date: { type: DataTypes.STRING(10) }, // 'YYYY', 'YYYY-MM' or 'YYYY-MM-DD'
   condition: { type: DataTypes.ENUM(...CONDITIONS) },
   barcode: { type: DataTypes.STRING(32) },
@@ -74,17 +79,8 @@ export const Item: AnyModel = sequelize.define('item', {
   description: { type: DataTypes.TEXT }, // synopsis from metadata sources
   comment: { type: DataTypes.TEXT }, // the user's own note
   user_id: { type: DataTypes.UUID, allowNull: false },
-  // Book / game
-  editor: { type: DataTypes.STRING(255) },
+  // Book
   isbn: { type: DataTypes.STRING(13) },
-  saga: { type: DataTypes.STRING(255) },
-  volume: { type: DataTypes.STRING(32) },
-  // Music
-  label: { type: DataTypes.STRING(255) },
-  // Music / movie
-  format: { type: DataTypes.STRING(32) },
-  // Movie
-  director: { type: DataTypes.STRING(255) },
   // Free key/value pairs (custom items, extra metadata)
   extra: { type: DataTypes.JSONB, defaultValue: {} },
 }, {
@@ -115,8 +111,31 @@ export async function syncDb(options: { alter?: boolean } = {}) {
   } catch {
     console.warn('⚠️  Postgres extension "unaccent" unavailable: search will be accent-sensitive.')
   }
-  await sequelize.sync({ alter: options.alter })
-  if (!options.alter) await addMissingColumns()
+  // Order matters: data moves (migrations) before anything could drop the columns they read
+  await sequelize.sync()
+  await addMissingColumns()
+  await runMigrations()
+  if (options.alter) await sequelize.sync({ alter: true })
+}
+
+/** Applies the migrations not applied yet (server/migrations), each in its own transaction, recorded in "migrations". */
+async function runMigrations() {
+  await sequelize.query('CREATE TABLE IF NOT EXISTS migrations (name TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())')
+  const [rows]: any = await sequelize.query('SELECT name FROM migrations')
+  const applied = new Set(rows.map((r: any) => r.name))
+  for (const migration of MIGRATIONS) {
+    if (applied.has(migration.name)) continue
+    await sequelize.transaction(async (transaction: any) => {
+      const query = (sql: string, replacements?: Record<string, any>) => sequelize.query(sql, { replacements, transaction })
+      const columns = async (table: string) => {
+        const [cols]: any = await query('SELECT column_name FROM information_schema.columns WHERE table_name = :table', { table })
+        return new Set<string>(cols.map((c: any) => c.column_name))
+      }
+      await migration.up({ query, columns })
+      await query('INSERT INTO migrations (name) VALUES (:name)', { name: migration.name })
+    })
+    console.log(`🛠  Database: migration ${migration.name} applied`)
+  }
 }
 
 /**

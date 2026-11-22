@@ -19,7 +19,7 @@ function guessFormat(text: string, ctx: Ctx): Record<string, string> {
   }
   if (ctx.type === 'videogame') {
     const platform = matchPlatform(s)
-    if (platform) return { category: platform }
+    if (platform) return { format: platform }
   }
   return {}
 }
@@ -58,8 +58,7 @@ const barcodeLookup: Connector = {
     return take(data?.products, 3).map((p: any) => candidate(this, ctx.type, {
       title: p.title,
       author: p.author || p.artist,
-      editor: p.publisher || p.manufacturer || p.brand,
-      label: ctx.type === 'music' ? p.brand : undefined,
+      editor: ctx.type === 'music' ? p.brand || p.publisher || p.manufacturer : p.publisher || p.manufacturer || p.brand,
       release_date: p.release_date,
       genre: p.genre,
       barcode: code,

@@ -32,13 +32,12 @@ export interface Duplicate {
   level: 'strict' | 'wide'
 }
 
-const creator = (f: any) => f?.author || f?.director
 
 /**
  * Duplicate check against the family's shelf of one media type, the same everywhere (add review, form, lists, import).
  * - strict: same ISBN or barcode;
  * - wide: same title and volume (a result without a volume matches on its title alone: sources often omit it),
- *   by the same author or director when both are known ("Greatest Hits" by Queen is not ABBA's);
+ *   by the same author when both are known ("Greatest Hits" by Queen is not ABBA's);
  *   games: a known, different platform is another item ("Mario Kart" on Switch and on Wii U).
  * exclude: the item being edited, not a duplicate of itself.
  * Returns a matcher: fields -> Duplicate | null.
@@ -49,7 +48,7 @@ export async function ownedMatcher(user: any, type: string, { exclude }: { exclu
   if (exclude) where.id = { [Op.ne]: exclude }
   const owned: any[] = await Item.findAll({
     where,
-    attributes: ['id', 'title', 'author', 'director', 'volume', 'category', 'isbn', 'barcode'],
+    attributes: ['id', 'title', 'author', 'volume', 'format', 'isbn', 'barcode'],
     raw: true,
   })
   const byCode = new Map<string, any>()
@@ -60,15 +59,15 @@ export async function ownedMatcher(user: any, type: string, { exclude }: { exclu
     byTitle.set(key, [...(byTitle.get(key) || []), o])
   }
   const result = (o: any, level: Duplicate['level']): Duplicate | null =>
-    (o ? { id: o.id, title: o.title, author: creator(o) || null, level } : null)
+    (o ? { id: o.id, title: o.title, author: o.author || null, level } : null)
 
   return (fields: any): Duplicate | null => {
     for (const c of [fields?.isbn, fields?.barcode].map(code)) if (c && byCode.has(c)) return result(byCode.get(c), 'strict')
     const volume = norm(fields?.volume)
     const hit = (byTitle.get(norm(fields?.title)) || []).find((o) =>
       (!volume || norm(o.volume) === volume)
-      && sameAuthor(creator(fields), creator(o))
-      && !(type === 'videogame' && fields?.category && o.category && fields.category !== o.category))
+      && sameAuthor(fields?.author, o.author)
+      && !(type === 'videogame' && fields?.format && o.format && fields.format !== o.format))
     return result(hit, 'wide')
   }
 }

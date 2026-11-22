@@ -1,3 +1,4 @@
+import { bookFormat } from '../connectors/books.ts'
 import { clean, has, year } from './types.ts'
 import type { Importer, ImportRow } from './types.ts'
 
@@ -32,6 +33,8 @@ export const goodreads: Importer = {
         editor: clean(r.Publisher),
         isbn: isbn(r.ISBN13) || isbn(r.ISBN),
         release_date: year(r['Original Publication Year']) || year(r['Year Published']),
+        // The kind from the user's shelves ("manga", "bd"…) or the binding ("Comic", "Graphic Novel"…); else the default
+        format: bookFormat(`${shelves} ${r.Binding || ''}`),
         consumed: shelf === 'read',
         digitalized: DIGITAL.test(r.Binding || ''),
         comment: clean(r['Private Notes']),
@@ -56,6 +59,7 @@ export const storygraph: Importer = {
         ...seriesTitle(clean(r.Title) || ''),
         author: clean(r.Authors),
         isbn: isbn(r['ISBN/UID']),
+        format: bookFormat(`${r.Tags || ''} ${r.Moods || ''}`),
         consumed: status === 'read',
         digitalized: DIGITAL.test(r.Format || ''),
       },

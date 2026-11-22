@@ -5,6 +5,26 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Changed
+- Fewer per-type fields: every item now has an author, a publisher, a saga and volume, and a format, named for its type:
+  - books: author, publisher, format (novel, comic, manga…), ISBN;
+  - music: artist, label, format (vinyl, CD, tape), category (album, EP…);
+  - movies: director, studio, format (DVD, Blu-ray, 4K), category (movie, series…);
+  - games: studio, publisher, platform;
+  - custom items: maker, brand, free format and category.
+- Books and games no longer have a category: a book's kind and a game's platform are its format.
+- The format is required for books, music, movies and games: picked right under the type in the form, the first one pre-selected (custom items keep a free, optional format).
+- Game sources also fill the publisher.
+- Grid and list show the same lines under the title, per type: books and movies their saga and volume, then author · year (movies: director · studio · year, games: studio · platform · year).
+- Grid and list no longer mark read/watched items or digital copies (both stay on the item page and in the filters).
+- Phones: the line marking the current tab in the bottom bar slides to the next tab, changing colour on the way.
+- Imports follow the new fields: book kinds come from Goodreads shelves and bindings or StoryGraph tags (manga, comic…), Discogs labels fill the label, digital-only releases are filed with CDs, and the preview shows the format each item will get (the type's first one when the export has none).
+
+### Upgrading
+- Existing data is moved on the first start (migration `001-common-fields`): book kinds and game platforms become formats, music labels become the label (publisher field), a movie's studio moves to the studio field and its director to the director (author field). The old `label`, `director` and `original_title` columns are then dropped.
+- Items without a format get the first one of their type (migration `002-required-format`): novel, vinyl, DVD, Switch 2.
+- Database changes now run as numbered migrations, applied once each on start and recorded in a `migrations` table.
+
 ## [0.1.1] - 2026-11-21
 
 ### Fixed

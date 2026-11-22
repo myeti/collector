@@ -84,13 +84,13 @@
           <span v-if="!row.duplicate && row.repeated" class="badge repeated"><vue-feather type="copy" size="10" /> {{ $t('import.repeated') }}</span>
           <span v-if="row.fields.consumed" class="badge">{{ $t(`consumed.${preview.type}`) }}</span>
           <span v-if="row.fields.digitalized" class="badge"><vue-feather type="cloud" size="10" /> {{ $t('library.copies.digital') }}</span>
-          <span v-if="row.fields.format" class="badge">{{ $t(`format.${row.fields.format}`) }}</span>
+          <span v-if="row.fields.format && preview.type !== 'videogame'" class="badge">{{ $t(`format.${row.fields.format}`) }}</span>
         </template>
         <!-- Games listed on several platforms: which one is on the shelf -->
         <template #end="{ row }">
-          <select v-if="row.choices" v-model="row.fields.category" class="select platform" :class="{ missing: !row.fields.category }" :aria-label="$t('fields.categoryBy.videogame')">
+          <select v-if="row.choices" v-model="row.fields.format" class="select platform" :class="{ missing: !row.fields.format }" :aria-label="$t('fields.formatBy.videogame')">
             <option :value="undefined">{{ $t('import.whichPlatform') }}</option>
-            <option v-for="c in row.choices" :key="c" :value="c">{{ $t(`category.videogame.${c}`) }}</option>
+            <option v-for="c in row.choices" :key="c" :value="c">{{ $t(`format.${c}`) }}</option>
           </select>
         </template>
         <template #before><button class="btn" @click="reset">{{ $t('common.cancel') }}</button></template>

@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import multer from 'multer'
 import { Item, sequelize } from '../db.ts'
-import { MEDIA_TYPES } from '../../shared/media.js'
+import { MEDIA_TYPES, defaultFormat } from '../../shared/media.js'
 import { IMPORTERS, readExport } from '../importers/index.ts'
 import { ownedMatcher, norm } from '../lib/matching.ts'
 import { badRequest, HttpError } from '../lib/http.ts'
@@ -44,7 +44,11 @@ importRouter.post('/preview', upload.single('file'), async (req: any, res) => {
       excluded.push({ title, reason })
       continue
     }
-    const key = [title, fields.volume, fields.author, importer.type === 'videogame' ? fields.category : ''].map(norm).join('|')
+    const key = [title, fields.volume, fields.author, importer.type === 'videogame' ? fields.format : ''].map(norm).join('|')
+    // Format is required: games on several platforms get the first one listed (the preview lets the user change it),
+    // anything else the type's default, so the preview shows what will be saved
+    if (row.choices?.length && !fields.format) fields.format = row.choices[0]
+    fields.format ||= defaultFormat(importer.type) || undefined
     items.push({
       id: items.length,
       fields,
@@ -72,6 +76,7 @@ importRouter.post('/commit', async (req: any, res) => {
       const data = sanitize(fields && typeof fields === 'object' ? fields : {}, type)
       if (!data.title) throw badRequest('title_required')
       delete data.cover // imports carry no covers ("Improve from sources" fetches them)
+      data.format ||= defaultFormat(type)
       delete data.extra
       valid.push({ ...data, type, user_id: req.user.id })
     } catch {

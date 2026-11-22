@@ -2,7 +2,8 @@ import { fetchJson } from '../lib/http.ts'
 import { candidate, take } from './types.ts'
 import type { Connector, Ctx } from './types.ts'
 
-function bookCategory(subjects: string): string | undefined {
+/** A book's kind (its format) from subjects, shelves, tags or binding: "Manga", "Bande dessinée", "Juvenile fiction"… */
+export function bookFormat(subjects: string): string | undefined {
   const s = subjects.toLowerCase()
   if (/manga/.test(s)) return 'manga'
   if (/comic|bande dessin|graphic novel|bd\b/.test(s)) return 'comic'
@@ -46,7 +47,7 @@ const googleBooks: Connector = {
         editor: v.publisher,
         release_date: v.publishedDate,
         genre: subjects,
-        category: bookCategory(`${subjects} ${v.title}`),
+        format: bookFormat(`${subjects} ${v.title}`),
         isbn,
         cover: img?.replace('&edge=curl', '').replace('zoom=1', 'zoom=0'),
         description: v.description?.slice(0, 2000),
@@ -75,7 +76,7 @@ const openLibrary: Connector = {
       editor: b.publishers?.[0]?.name,
       release_date: b.publish_date,
       genre: subjects,
-      category: bookCategory(subjects),
+      format: bookFormat(subjects),
       isbn: code.length === 13 ? code : undefined,
       barcode: code,
       cover: b.cover?.large || b.cover?.medium,
@@ -96,7 +97,7 @@ const openLibrary: Connector = {
         editor: d.publisher?.[0],
         release_date: d.first_publish_year,
         genre: subjects,
-        category: bookCategory(subjects),
+        format: bookFormat(subjects),
         isbn: d.isbn?.find((i: string) => i.length === 13),
         cover: d.cover_i ? `https://covers.openlibrary.org/b/id/${d.cover_i}-L.jpg` : undefined,
         ...sagaHints(d.title),
@@ -114,7 +115,7 @@ function isbndbBook(this: Connector, b: any, code?: string) {
     editor: b.publisher,
     release_date: b.date_published,
     genre: subjects,
-    category: bookCategory(`${subjects} ${b.binding || ''}`),
+    format: bookFormat(`${subjects} ${b.binding || ''}`),
     isbn: b.isbn13,
     barcode: code,
     cover: b.image_original || b.image,
@@ -159,7 +160,7 @@ const comicVine: Connector = {
       saga: v.name,
       editor: v.publisher?.name,
       release_date: v.start_year,
-      category: 'comic',
+      format: 'comic',
       genre: 'superhero',
       cover: v.image?.original_url || v.image?.medium_url,
     }, v.site_detail_url))
@@ -190,7 +191,7 @@ const mangaDex: Connector = {
         author: m.relationships?.filter((r: any) => r.type === 'author').map((r: any) => r.attributes?.name),
         saga: alt || title,
         release_date: a.year,
-        category: 'manga',
+        format: 'manga',
         genre: [a.publicationDemographic, ...tags].filter(Boolean).join(', '),
         cover: coverFile ? `https://uploads.mangadex.org/covers/${m.id}/${coverFile}` : undefined,
       }, `https://mangadex.org/title/${m.id}`)

@@ -9,17 +9,13 @@
     <div ref="art" class="art">
       <CoverImage :src="item.cover" :title="item.title" :type="item.type" />
       <span class="shine" aria-hidden="true"></span>
-      <!-- Consumed: a "completed" bar along the bottom edge, like a fully watched episode -->
-      <span v-if="item.consumed" class="done" :title="$t(`consumed.${item.type}`)" :aria-label="$t(`consumed.${item.type}`)"></span>
-      <!-- Digital copy: a small cloud in the corner -->
-      <span v-if="item.digitalized" class="digital" :title="$t('fields.digitalized')" :aria-label="$t('fields.digitalized')"><vue-feather type="cloud" size="11" stroke-width="2.4" /></span>
       <span v-if="!item.mine && item.owner" class="owner" :style="{ background: personColor(item.owner.id) }" :title="item.owner.name">{{ initial(item.owner) }}</span>
     </div>
     <div class="meta">
-      <!-- {title} / {saga} #{volume} / {platform} · {author} -->
+      <!-- {title} / [{saga} #{volume}] / {author} · … · {year}: per media type, see itemLines (same as the list) -->
       <div class="title clamp-2" :title="item.title">{{ item.title }}</div>
-      <MetaLine v-if="item.saga || item.volume" class="saga" :groups="sagaGroups" />
-      <MetaLine v-if="creatorGroups.length" class="sub" :groups="creatorGroups" />
+      <MetaLine v-if="lines.saga.length" class="saga" :groups="lines.saga" />
+      <MetaLine v-if="lines.meta.length" class="sub" :groups="lines.meta" />
       <div v-else class="sub">{{ '\u00a0' }}</div>
     </div>
   </router-link>
@@ -29,15 +25,14 @@
 import CoverImage from './CoverImage.vue'
 import MetaLine from './MetaLine.vue'
 import { personColor, initial } from '../lib/people.js'
-import { metaGroups } from '../lib/format.js'
+import { itemLines } from '../lib/format.js'
 
 export default {
   name: 'ItemCard',
   components: { CoverImage, MetaLine },
   props: { item: { type: Object, required: true } },
   computed: {
-    sagaGroups() { return metaGroups(this.item, { author: false, year: false }) },
-    creatorGroups() { return metaGroups(this.item, { saga: false, year: false }) },
+    lines() { return itemLines(this.item) },
   },
   methods: {
     personColor,
@@ -79,21 +74,10 @@ export default {
   mix-blend-mode: soft-light;
 }
 .card-item:hover .shine { opacity: 1; }
-.done {
-  position: absolute; left: 0; right: 0; bottom: 0; height: 3px; z-index: 4; background: var(--accent);
-  box-shadow: 0 0 8px var(--accent), 0 0 2px var(--accent);
-  transform-origin: left; animation: fill 0.6s var(--ease) both;
-}
-/* Keep the owner badge clear of the bar */
-.done ~ .owner { bottom: 9px; }
 .owner {
   position: absolute; z-index: 4; bottom: 6px; right: 6px; width: 20px; height: 20px; border-radius: var(--r-xs);
   display: grid; place-items: center; font-size: 10.5px; font-weight: 700; color: #fff;
   box-shadow: 0 0 0 1.5px rgb(10 10 12 / 0.55), 0 2px 6px rgb(0 0 0 / 0.35);
-}
-.digital {
-  position: absolute; z-index: 4; top: 6px; left: 6px; width: 20px; height: 20px; border-radius: var(--r-xs);
-  display: grid; place-items: center; color: #fff; background: rgb(10 10 12 / 0.55); backdrop-filter: blur(6px);
 }
 .meta { min-width: 0; }
 .title { font-weight: 600; font-size: 13px; line-height: 1.3; }
@@ -104,5 +88,4 @@ export default {
   .sub, .saga { font-size: 11px; }
   .card-item { gap: 5px; }
 }
-@keyframes fill { from { transform: scaleX(0); } }
 </style>

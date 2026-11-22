@@ -52,7 +52,7 @@
 
     <div class="below">
       <!--
-        Quick filter: category (books, games) or format (music, movies). On mobile it is fixed above the bottom bar
+        Quick filter: the format (book kind, music / movie medium, game platform), or the category of custom items. On mobile it is fixed above the bottom bar
         and teleported to <body>: the page transitions use transforms, which would otherwise re-anchor a fixed element.
       -->
       <teleport to="body" :disabled="!mobile">
@@ -174,12 +174,10 @@
       <!-- List -->
       <div v-else class="rows panel" :class="{ dim: loading }">
         <ItemRow v-for="item in items" :key="item.id" as="router-link" :to="`/item/${item.id}`" :item="item" thumb class="list-row">
-          <template #thumb><span v-if="item.consumed" class="done" :title="$t(`consumed.${item.type}`)"></span></template>
           <template #end>
+            <span v-if="item.category" class="chip static hide-sm">{{ $te(`category.${item.type}.${item.category}`) ? $t(`category.${item.type}.${item.category}`) : item.category }}</span>
             <!-- Games: the platform already leads the meta line -->
-            <span v-if="item.category && item.type !== 'videogame'" class="chip static hide-sm">{{ $te(`category.${item.type}.${item.category}`) ? $t(`category.${item.type}.${item.category}`) : item.category }}</span>
-            <span v-if="item.format" class="chip static hide-sm">{{ $t(`format.${item.format}`) }}</span>
-            <vue-feather v-if="item.digitalized" type="cloud" size="14" class="digital-mark" :title="$t('fields.digitalized')" />
+            <span v-if="item.format && item.type !== 'videogame'" class="chip static hide-sm">{{ $te(`format.${item.format}`) ? $t(`format.${item.format}`) : item.format }}</span>
             <!-- Family: whose item it is -->
             <span
               v-if="!item.mine && item.owner" class="owner-mark" :style="{ background: personColor(item.owner.id) }"
@@ -252,8 +250,7 @@ export default {
     formats() { return MEDIA[this.type].formats },
     genres() { return MEDIA[this.type].genres },
     sorts() {
-      const base = ['title', 'author', 'release', 'recent']
-      return MEDIA[this.type].fields.includes('saga') ? [...base, 'saga'] : base
+      return ['title', 'author', 'release', 'recent', 'saga']
     },
     quickField() { return MEDIA[this.type].quickFilter },
     /** Values present in the collection for the quick bar, in their natural order. */
@@ -513,9 +510,6 @@ export default {
 
 .rows { padding: 4px; }
 .list-row + .list-row { box-shadow: 0 -1px 0 var(--border); }
-/* Same "completed" bar as the grid cards */
-.done { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--accent); box-shadow: 0 0 6px var(--accent); }
-.digital-mark { flex: none; color: var(--faint); }
 .owner-mark {
   flex: none; width: 22px; height: 22px; border-radius: var(--r-xs); display: grid; place-items: center;
   font-size: 11px; font-weight: 700; color: #fff;

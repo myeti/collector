@@ -41,6 +41,8 @@
     </main>
 
     <nav v-if="chrome" class="bottom-nav glass" :style="{ gridTemplateColumns: `repeat(${store.enabledTypes.length + 1}, 1fr)` }">
+      <!-- One line for the current tab, sliding from tab to tab (and taking its colour) -->
+      <span class="nav-indicator" :style="navIndicator" aria-hidden="true"></span>
       <button
         v-for="t in store.enabledTypes" :key="t" :class="{ on: $route.name === 'library' && store.type === t }"
         :style="{ '--c': ACCENTS[t].color }" @click="goType(t)"
@@ -82,6 +84,19 @@ export default {
   components: { MediaSwitcher, AddSheet, Toasts, AppLogo, PwaStatus },
   data: () => ({ store, MEDIA, ACCENTS }),
   computed: {
+    /** Where the bottom bar's line sits: the shelf's type, or settings; hidden on other pages (item, add…) */
+    navIndicator() {
+      const tabs = store.enabledTypes.length + 1
+      const onShelf = this.$route.name === 'library'
+      const onSettings = this.$route.path.startsWith('/settings')
+      const index = onSettings ? tabs - 1 : Math.max(0, store.enabledTypes.indexOf(store.type))
+      return {
+        width: `${100 / tabs}%`,
+        transform: `translateX(${index * 100}%)`,
+        opacity: onShelf || onSettings ? 1 : 0,
+        '--c': onSettings ? 'var(--muted)' : ACCENTS[store.type]?.color,
+      }
+    },
     chrome() {
       return !!store.user && !this.$route.meta.public
     },
@@ -148,10 +163,15 @@ main { min-height: 100vh; min-height: 100dvh; }
 }
 .bottom-nav a:active, .bottom-nav button:active { transform: scale(0.92); }
 .bottom-nav button.on { color: var(--c); }
-.bottom-nav button.on::before {
-  content: ''; position: absolute; top: -1px; left: 28%; right: 28%; height: 2px; border-radius: 0 0 2px 2px;
-  background: var(--c); box-shadow: 0 0 12px var(--c);
+.nav-indicator {
+  position: absolute; top: -1px; left: 0; height: 2px; pointer-events: none;
+  transition: transform 0.35s var(--ease), opacity 0.25s;
 }
+.nav-indicator::before {
+  content: ''; position: absolute; inset: 0 28%; border-radius: 0 0 2px 2px;
+  background: var(--c); box-shadow: 0 0 12px var(--c); transition: background 0.35s, box-shadow 0.35s;
+}
+@media (prefers-reduced-motion: reduce) { .nav-indicator, .nav-indicator::before { transition: none; } }
 .bottom-nav a.router-link-active { color: var(--text); }
 :root[data-theme='light'] .bottom-nav button.on { color: color-mix(in oklab, var(--c) 70%, #18181b); }
 .fab {

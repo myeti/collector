@@ -1,5 +1,6 @@
 <template>
-  <!-- One item in a list: [lead] cover · title / author · saga #volume · year / badges [end].
+  <!-- One item in a list: [lead] cover · title / [saga #volume] / author · … · year / badges [end].
+       Same lines as the grid cards, per media type (itemLines).
        Library list, photo and search selections, import preview, review queue. -->
   <component :is="as" class="item-row">
     <slot name="lead" />
@@ -9,7 +10,8 @@
     </span>
     <span class="grow info">
       <span class="title clamp-2" :title="item.title">{{ item.title }}</span>
-      <MetaLine v-if="groups.length" class="muted meta" :groups="groups" />
+      <MetaLine v-if="lines.saga.length" class="saga" :groups="lines.saga" />
+      <MetaLine v-if="lines.meta.length" class="muted meta" :groups="lines.meta" />
       <span v-if="$slots.badges" class="badges"><slot name="badges" /></span>
     </span>
     <slot name="end" />
@@ -19,7 +21,7 @@
 <script>
 import CoverImage from './CoverImage.vue'
 import MetaLine from './MetaLine.vue'
-import { metaGroups } from '../lib/format.js'
+import { itemLines } from '../lib/format.js'
 
 export default {
   name: 'ItemRow',
@@ -32,7 +34,7 @@ export default {
     thumb: Boolean,
   },
   computed: {
-    groups() { return metaGroups(this.item) },
+    lines() { return itemLines(this.item) },
   },
 }
 </script>
@@ -47,6 +49,7 @@ label.item-row { cursor: pointer; }
 .info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .title { font-weight: 600; font-size: 13.5px; line-height: 1.3; }
 .meta { font-size: 12px; }
+.saga { font-size: 12px; color: var(--accent-ink); }
 .badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
 .badges :deep(.badge) { font-size: 10.5px; line-height: 17px; padding: 0 6px; }
 </style>

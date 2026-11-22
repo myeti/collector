@@ -62,11 +62,12 @@ export default {
     title: 'Titre', author: 'Auteur', cover: 'Couverture', genre: 'Genre',
     category: 'Catégorie', release_date: 'Date de sortie', condition: 'État', barcode: 'Code-barres',
     consumed: 'Statut', description: 'Résumé', comment: 'Commentaire', editor: 'Éditeur', isbn: 'ISBN', saga: 'Saga', volume: 'Tome',
-    label: 'Label', format: 'Format', director: 'Réalisateur',
-    categoryBy: { videogame: 'Plateforme' },
-    authorBy: { book: 'Auteur', music: 'Artiste', movie: 'Studio', videogame: 'Développeur', custom: 'Fabricant' },
-    editorBy: { book: 'Éditeur', custom: 'Marque' },
-    volumeBy: { movie: 'Numéro', videogame: 'Numéro' },
+    format: 'Format',
+    // Même champ, un nom différent selon le type
+    authorBy: { book: 'Auteur', music: 'Artiste', movie: 'Réalisateur', videogame: 'Studio', custom: 'Fabricant' },
+    editorBy: { book: 'Éditeur', music: 'Label', movie: 'Studio', videogame: 'Éditeur', custom: 'Marque' },
+    formatBy: { videogame: 'Plateforme' },
+    volumeBy: { music: 'Numéro', movie: 'Numéro', videogame: 'Numéro', custom: 'Numéro' },
     commentHint: 'Votre note perso : les sources ne la remplissent jamais',
     digitalized: 'Copie numérique',
     digitalizedHint: 'Pas d’objet physique, mais possédé : ebook, fichiers, jeu dématérialisé…',
@@ -75,12 +76,15 @@ export default {
   },
   platformBrand: { nintendo: 'Nintendo', playstation: 'PlayStation', xbox: 'Xbox', sega: 'Sega', other: 'Autres' },
   condition: { poor: 'Abîmé', fair: 'Correct', good: 'Bon', perfect: 'Parfait' },
-  format: { vinyl: 'Vinyle', cd: 'CD', tape: 'Cassette', dvd: 'DVD', bluray: 'Blu-ray', uhd: 'Blu-ray 4K' },
+  // Livres : type · musique, films : support · jeux : plateforme
+  format: {
+    novel: 'Roman', comic: 'BD', manga: 'Manga', magazine: 'Magazine', essay: 'Essai', artbook: 'Artbook', children: 'Jeunesse', other: 'Autre',
+    vinyl: 'Vinyle', cd: 'CD', tape: 'Cassette', dvd: 'DVD', bluray: 'Blu-ray', uhd: 'Blu-ray 4K',
+    ...PLATFORM_LABELS,
+  },
   category: {
-    book: { novel: 'Roman', comic: 'BD', manga: 'Manga', magazine: 'Magazine', essay: 'Essai', artbook: 'Artbook', children: 'Jeunesse', other: 'Autre' },
     music: { album: 'Album', single: 'Single', ep: 'EP', live: 'Live', compilation: 'Compilation', soundtrack: 'Bande originale', stories: 'Histoires' },
     movie: { movie: 'Film', series: 'Série', animated_movie: 'Film d’animation', animated_series: 'Série animée', documentary: 'Documentaire' },
-    videogame: { ...PLATFORM_LABELS, other: 'Autre' },
     custom: {},
   },
   genre: {
@@ -103,7 +107,7 @@ export default {
     },
     videogame: {
       action: 'Action', adventure: 'Aventure', rpg: 'RPG', strategy: 'Stratégie', simulation: 'Simulation', sports: 'Sport',
-      racing: 'Course', puzzle: 'Réflexion', platformer: 'Plateforme', shooter: 'Tir', fighting: 'Combat',
+      racing: 'Course', puzzle: 'Réflexion', platformer: 'Jeu de plateformes', shooter: 'Tir', fighting: 'Combat',
       party: 'Ambiance', family: 'Familial', cooperative: 'Coopératif', horror: 'Horreur',
     },
     custom: {},

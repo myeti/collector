@@ -1,9 +1,10 @@
 // Media definitions shared by the server (validation, connectors) and the app (forms, filters).
-// Labels live in the i18n files: media.<type>, category.<type>.<key>, genre.<type>.<key>, format.<key>.
+// Labels live in the i18n files: media.<type>, category.<type>.<key>, genre.<type>.<key>, format.<key>,
+// and per-type field names: fields.<field>By.<type> (author, editor, format, volume).
 
 export const CONDITIONS = ['poor', 'fair', 'good', 'perfect']
 
-// Video game platforms, grouped by brand. They are the categories of the `videogame` collection.
+// Video game platforms, grouped by brand. They are the formats of the `videogame` collection (shown as "Platform").
 export const PLATFORM_GROUPS = [
   { brand: 'nintendo', platforms: ['switch2', 'switch', 'wiiu', 'wii', 'gamecube', 'n64', 'snes', 'nes', '3ds', 'ds', 'gba', 'gbc', 'gb'] },
   { brand: 'playstation', platforms: ['ps5', 'ps4', 'ps3', 'ps2', 'ps1', 'psvita', 'psp'] },
@@ -45,68 +46,74 @@ export function matchPlatform(raw) {
   return null
 }
 
+// Every item has these fields; a media type may hide some (`hidden`) and add its own (`fields`).
+// author: author, artist, director or studio · editor: publisher, label, studio or brand (labels per type, see i18n).
+// format: the physical kind (book: novel, comic…; music: vinyl, CD…; movie: DVD…; game: the platform).
 // description: synopsis from metadata sources. comment: the user's own note, never filled by sources.
 // digitalized: owned as a digital copy (ebook, files, digital game…) rather than a physical one.
 export const COMMON_FIELDS = [
-  'title', 'author', 'cover', 'genre', 'category',
+  'title', 'author', 'editor', 'cover', 'genre', 'category', 'format', 'saga', 'volume',
   'release_date', 'condition', 'barcode', 'consumed', 'digitalized', 'description', 'comment',
 ]
 
 export const MEDIA = {
   // quickFilter: the field offered in the quick bar above the bottom navigation.
+  // categories / formats: the allowed values; an empty list means free text (custom items).
   book: {
     icon: 'book-open',
-    quickFilter: 'category',
-    fields: ['editor', 'isbn', 'saga', 'volume'],
-    categories: ['novel', 'comic', 'manga', 'magazine', 'essay', 'artbook', 'children', 'other'],
+    quickFilter: 'format',
+    fields: ['isbn'],
+    hidden: ['category'],
+    categories: [],
+    formats: ['novel', 'comic', 'manga', 'magazine', 'essay', 'artbook', 'children', 'other'],
     genres: [
       'fantasy', 'science_fiction', 'romance', 'thriller', 'crime', 'horror', 'adventure',
       'historical', 'biography', 'humor', 'drama', 'poetry', 'slice_of_life', 'shonen',
       'seinen', 'shojo', 'superhero', 'nonfiction', 'cooking', 'travel', 'science', 'youth',
     ],
-    formats: [],
   },
   music: {
     icon: 'disc',
     quickFilter: 'format',
-    fields: ['label', 'format'],
+    fields: [],
     categories: ['album', 'single', 'ep', 'live', 'compilation', 'soundtrack', 'stories'],
+    formats: ['vinyl', 'cd', 'tape'],
     genres: [
       'pop', 'rock', 'metal', 'punk', 'jazz', 'blues', 'classical', 'electronic', 'hip_hop',
       'rnb', 'soul', 'funk', 'reggae', 'folk', 'country', 'world', 'chanson', 'soundtrack', 'kids',
     ],
-    formats: ['vinyl', 'cd', 'tape'],
   },
   movie: {
     icon: 'film',
     quickFilter: 'format',
-    fields: ['director', 'saga', 'volume', 'format'],
+    fields: [],
     categories: ['movie', 'series', 'animated_movie', 'animated_series', 'documentary'],
+    formats: ['dvd', 'bluray', 'uhd'],
     genres: [
       'action', 'adventure', 'comedy', 'drama', 'romance', 'thriller', 'horror', 'science_fiction',
       'fantasy', 'crime', 'war', 'western', 'musical', 'family', 'documentary', 'history', 'mystery',
     ],
-    formats: ['dvd', 'bluray', 'uhd'],
   },
-  // Video games only (the UI calls it "Games"). Its category is the platform.
+  // Video games only (the UI calls it "Games"). Its format is the platform.
   videogame: {
     icon: 'monitor',
-    quickFilter: 'category',
-    fields: ['saga', 'volume'],
-    categories: PLATFORM_GROUPS.flatMap((g) => g.platforms),
+    quickFilter: 'format',
+    fields: [],
+    hidden: ['category'],
+    categories: [],
+    formats: PLATFORM_GROUPS.flatMap((g) => g.platforms),
     genres: [
       'action', 'adventure', 'rpg', 'strategy', 'simulation', 'sports', 'racing', 'puzzle',
       'platformer', 'shooter', 'fighting', 'party', 'family', 'cooperative', 'horror',
     ],
-    formats: [],
   },
   custom: {
     icon: 'box',
     quickFilter: 'category',
-    fields: ['editor'],
+    fields: [],
     categories: [],
-    genres: [],
     formats: [],
+    genres: [],
   },
 }
 
@@ -129,8 +136,21 @@ export const SPECIFIC_FIELDS = [...new Set(MEDIA_TYPES.flatMap((t) => MEDIA[t].f
 
 export const ALL_FIELDS = [...COMMON_FIELDS, ...SPECIFIC_FIELDS]
 
+/** The fields an item of this type has: the common ones it does not hide, then its own. */
 export function fieldsFor(type) {
-  return [...COMMON_FIELDS, ...(MEDIA[type]?.fields || [])]
+  const hidden = MEDIA[type]?.hidden || []
+  return [...COMMON_FIELDS.filter((f) => !hidden.includes(f)), ...(MEDIA[type]?.fields || [])]
+}
+
+/** Format is required for types with a list of formats: the first one is the default. Custom items: free, optional. */
+export function defaultFormat(type) {
+  return MEDIA[type]?.formats?.[0] || null
+}
+
+/** A value for a field with a fixed list (category, format): one of the list, or anything when the list is empty. */
+export function allowedValue(type, field, value) {
+  const list = field === 'format' ? MEDIA[type]?.formats : MEDIA[type]?.categories
+  return !value || !list?.length || list.includes(value)
 }
 
 export function isIsbn(code) {

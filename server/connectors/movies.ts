@@ -39,7 +39,7 @@ const tmdb: Connector = {
         : d.credits?.crew?.filter((p: any) => p.job === 'Director').map((p: any) => p.name)
       return candidate(this, 'movie', {
         title: d.title || d.name,
-        director,
+        author: director,
         release_date: d.release_date || d.first_air_date,
         genre: genreIds.map((g) => TMDB_GENRES[g]).find(Boolean),
         category: isTv ? (animated ? 'animated_series' : 'series') : (animated ? 'animated_movie' : 'movie'),
@@ -68,7 +68,7 @@ const omdb: Connector = {
       const series = d.Type === 'series'
       return candidate(this, 'movie', {
         title: d.Title,
-        director: na(d.Director) || na(d.Writer),
+        author: na(d.Director) || na(d.Writer),
         release_date: na(d.Released) ? new Date(d.Released).toISOString().slice(0, 10) : na(d.Year),
         genre: na(d.Genre),
         category: series ? (animated ? 'animated_series' : 'series') : (animated ? 'animated_movie' : 'movie'),

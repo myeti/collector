@@ -16,7 +16,7 @@
           </div>
           <div class="m-info">
             <strong class="clamp2">{{ c.fields.title }}</strong>
-            <span class="muted truncate">{{ [c.fields.author || c.fields.director, c.fields.release_date?.slice(0, 4)].filter(Boolean).join(' · ') }}</span>
+            <span class="muted truncate">{{ [c.fields.author, c.fields.release_date?.slice(0, 4)].filter(Boolean).join(' · ') }}</span>
             <span class="src" :class="{ ai: c.source === 'llm' }">
               <vue-feather :type="c.source === 'llm' ? 'cpu' : 'database'" size="11" /> {{ c.sourceName }}
             </span>
@@ -186,7 +186,7 @@ export default {
     fieldLabel(f) {
       if (f === 'author') return this.$t(`fields.authorBy.${this.type}`)
       if (f === 'volume' && this.$te(`fields.volumeBy.${this.type}`)) return this.$t(`fields.volumeBy.${this.type}`)
-      if (f === 'category' && this.$te(`fields.categoryBy.${this.type}`)) return this.$t(`fields.categoryBy.${this.type}`)
+      if (f === 'format' && this.$te(`fields.formatBy.${this.type}`)) return this.$t(`fields.formatBy.${this.type}`)
       if (f === 'editor' && this.$te(`fields.editorBy.${this.type}`)) return this.$t(`fields.editorBy.${this.type}`)
       return this.$t(`fields.${f}`)
     },

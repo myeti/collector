@@ -47,7 +47,7 @@ const musicBrainz: Connector = {
       return candidate(this, 'music', {
         title: r.title,
         author: r['artist-credit']?.map((a: any) => a.name + (a.joinphrase || '')).join('').trim(),
-        label: r['label-info']?.[0]?.label?.name,
+        editor: r['label-info']?.[0]?.label?.name,
         release_date: r.date,
         format: musicFormat(r.media?.map((m: any) => m.format).join(' ')),
         category: musicCategory(`${secondary} ${rg['primary-type'] || ''}`),
@@ -65,7 +65,7 @@ function discogsResult(this: Connector, r: any) {
   return candidate(this, 'music', {
     title: rest.length ? rest.join(' - ') : r.title,
     author: rest.length ? artist.replace(/\s*\(\d+\)$/, '') : undefined,
-    label: r.label?.[0],
+    editor: r.label?.[0],
     release_date: r.year,
     genre: [...(r.style || []), ...(r.genre || [])].join(', '),
     format: musicFormat(formats),
@@ -109,7 +109,7 @@ const deezer: Connector = {
     return [candidate(this, 'music', {
       title: a.title,
       author: a.artist?.name,
-      label: a.label,
+      editor: a.label,
       release_date: a.release_date,
       genre: a.genres?.data?.map((g: any) => g.name).join(', '),
       category: musicCategory(a.record_type),
@@ -137,7 +137,7 @@ function itunesItem(this: Connector, r: any, type: MediaType, code?: string) {
   if (type === 'movie') {
     return candidate(this, 'movie', {
       title: r.trackName || r.collectionName,
-      director: r.artistName,
+      author: r.artistName,
       release_date: r.releaseDate,
       genre: r.primaryGenreName,
       category: r.kind === 'feature-movie' ? 'movie' : undefined,

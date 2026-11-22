@@ -12,7 +12,8 @@ function format(descriptors: string[]) {
     if (/LP\b|Vinyl|Flexi|\d+"/i.test(d)) return { format: 'vinyl' }
     if (/CDr?\b|SACD/i.test(d)) return { format: 'cd' }
     if (/\bCass/i.test(d)) return { format: 'tape' }
-    if (/\b(File|Digital)\b/i.test(d)) return { digitalized: true }
+    // Files only: a digital copy, filed with CDs (the closest medium; format is required)
+    if (/\b(File|Digital)\b/i.test(d)) return { format: 'cd', digitalized: true }
   }
   return {}
 }
@@ -41,7 +42,7 @@ export const discogs: Importer = {
         title,
         // "Prince (2)" / "Supertramp*": Discogs disambiguation marks
         author: clean((r.Artist || '').replace(/\s*\(\d+\)/g, '').replace(/\*/g, '')),
-        label: clean([...new Set((r.Label || '').split(',').map((l) => l.replace(/\s*\(\d+\)/g, '').trim()))][0]),
+        editor: clean([...new Set((r.Label || '').split(',').map((l) => l.replace(/\s*\(\d+\)/g, '').trim()))][0]),
         release_date: year(r.Released),
         category: category(descriptors, title),
         ...format(descriptors),

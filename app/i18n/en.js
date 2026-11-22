@@ -62,11 +62,12 @@ export default {
     title: 'Title', author: 'Author', cover: 'Cover', genre: 'Genre',
     category: 'Category', release_date: 'Release date', condition: 'Condition', barcode: 'Barcode',
     consumed: 'Status', description: 'Description', comment: 'Comment', editor: 'Publisher', isbn: 'ISBN', saga: 'Saga', volume: 'Volume',
-    label: 'Label', format: 'Format', director: 'Director',
-    categoryBy: { videogame: 'Platform' },
-    authorBy: { book: 'Author', music: 'Artist', movie: 'Studio', videogame: 'Developer', custom: 'Maker' },
-    editorBy: { book: 'Publisher', custom: 'Brand' },
-    volumeBy: { movie: 'Number', videogame: 'Number' },
+    format: 'Format',
+    // Same field, a different name per media type
+    authorBy: { book: 'Author', music: 'Artist', movie: 'Director', videogame: 'Studio', custom: 'Maker' },
+    editorBy: { book: 'Publisher', music: 'Label', movie: 'Studio', videogame: 'Publisher', custom: 'Brand' },
+    formatBy: { videogame: 'Platform' },
+    volumeBy: { music: 'Number', movie: 'Number', videogame: 'Number', custom: 'Number' },
     commentHint: 'Your own note: sources never fill it in',
     digitalized: 'Digital copy',
     digitalizedHint: 'Not a physical item, but owned: ebook, files, digital game…',
@@ -75,12 +76,15 @@ export default {
   },
   platformBrand: { nintendo: 'Nintendo', playstation: 'PlayStation', xbox: 'Xbox', sega: 'Sega', other: 'Others' },
   condition: { poor: 'Poor', fair: 'Fair', good: 'Good', perfect: 'Perfect' },
-  format: { vinyl: 'Vinyl', cd: 'CD', tape: 'Tape', dvd: 'DVD', bluray: 'Blu-ray', uhd: '4K Blu-ray' },
+  // Books: kind · music, movies: medium · games: platform
+  format: {
+    novel: 'Novel', comic: 'Comic', manga: 'Manga', magazine: 'Magazine', essay: 'Essay', artbook: 'Artbook', children: 'Children', other: 'Other',
+    vinyl: 'Vinyl', cd: 'CD', tape: 'Tape', dvd: 'DVD', bluray: 'Blu-ray', uhd: '4K Blu-ray',
+    ...PLATFORM_LABELS,
+  },
   category: {
-    book: { novel: 'Novel', comic: 'Comic', manga: 'Manga', magazine: 'Magazine', essay: 'Essay', artbook: 'Artbook', children: 'Children', other: 'Other' },
     music: { album: 'Album', single: 'Single', ep: 'EP', live: 'Live', compilation: 'Compilation', soundtrack: 'Soundtrack', stories: 'Stories' },
     movie: { movie: 'Movie', series: 'Series', animated_movie: 'Animated movie', animated_series: 'Animated series', documentary: 'Documentary' },
-    videogame: { ...PLATFORM_LABELS, other: 'Other' },
     custom: {},
   },
   genre: {

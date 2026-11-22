@@ -3,7 +3,7 @@
 import { api } from './api.js'
 
 /** Only the fields the check uses: nothing to send when there is nothing to compare. */
-const KEYS = ['title', 'author', 'director', 'volume', 'category', 'isbn', 'barcode']
+const KEYS = ['title', 'author', 'volume', 'format', 'isbn', 'barcode']
 
 export async function findDuplicate(type, fields, exclude) {
   const f = Object.fromEntries(KEYS.filter((k) => fields?.[k]).map((k) => [k, fields[k]]))

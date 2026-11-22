@@ -4,7 +4,7 @@ import { candidate, take } from './types.ts'
 import type { Connector } from './types.ts'
 import { matchPlatform } from '../../shared/media.js'
 
-/** First platform of the list we know about: it becomes the item category. */
+/** First platform of the list we know about: it becomes the item format (shown as Platform). */
 const platformOf = (names: string[]) => names.map(matchPlatform).find(Boolean)
 
 // ---------------------------------------------------------------- RAWG
@@ -22,9 +22,10 @@ const rawg: Connector = {
       return candidate(this, 'videogame', {
         title: d.name,
         author: d.developers?.map((x: any) => x.name),
+        editor: d.publishers?.map((x: any) => x.name),
         release_date: d.released,
         genre: d.genres?.map((x: any) => x.name).join(', '),
-        category: platformOf((d.platforms || []).map((p: any) => p.platform?.name)),
+        format: platformOf((d.platforms || []).map((p: any) => p.platform?.name)),
         cover: d.background_image,
         description: d.description_raw?.slice(0, 2000),
       }, `https://rawg.io/games/${g.slug}`)
@@ -72,9 +73,10 @@ const igdb: Connector = {
       return candidate(this, 'videogame', {
         title: g.name,
         author: companies.filter((c: any) => c.developer).map((c: any) => c.company?.name),
+        editor: companies.filter((c: any) => c.publisher).map((c: any) => c.company?.name),
         release_date: g.first_release_date,
         genre: g.genres?.map((x: any) => x.name).join(', '),
-        category: platformOf((g.platforms || []).map((p: any) => `${p.name || ''} ${p.abbreviation || ''}`)),
+        format: platformOf((g.platforms || []).map((p: any) => `${p.name || ''} ${p.abbreviation || ''}`)),
         saga: g.franchises?.[0]?.name || g.collections?.[0]?.name,
         cover: g.cover?.image_id ? `https://images.igdb.com/igdb/image/upload/t_cover_big_2x/${g.cover.image_id}.jpg` : undefined,
         description: g.summary?.slice(0, 2000),

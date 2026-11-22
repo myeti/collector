@@ -17,7 +17,7 @@ export const rawg: Importer = {
       fields: {
         title: clean((r.Game || '').replace(/\s*\((19|20)\d\d\)\s*$/, '')), // "Mario Kart 64 (1996)"
         release_date: clean(r.Released)?.match(/^\d{4}(-\d{2}(-\d{2})?)?$/)?.[0] || year(r.Released),
-        category: platform,
+        format: platform,
         consumed: /beaten|complet|^played$|dropped|abandon/.test(status),
       },
       choices: platform ? undefined : listed,

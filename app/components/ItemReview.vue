@@ -24,7 +24,7 @@
 
       <CherryPicker
         v-if="candidates.length || preset.cover"
-        :type="type" :candidates="candidates" :preset="preset" :initial="initial" :saving="saving"
+        :type="type" :candidates="candidates" :preset="presetWithFormat" :initial="initial" :saving="saving"
         :apply-mode="apply" :prefer-preset="apply" :preset-label="presetLabel" :preset-cover-label="presetCoverLabel"
         @done="apply ? $emit('apply', $event) : $emit('edit', $event)" @save="(fields, button) => $emit('save', fields, button)"
         @change="checkDuplicate"
@@ -37,7 +37,7 @@
       <EmptyState v-else icon="help-circle" :title="$t('lookup.nothing')" :text="apply ? $t('review.nothingApply') : $t('lookup.nothingText')">
         <template v-if="!apply">
           <button class="btn" @click="$emit('ignore')"><vue-feather type="x" size="15" /> {{ $t('review.ignore') }}</button>
-          <button class="btn primary" @click="$emit('edit', { ...preset })"><vue-feather type="edit-3" size="15" /> {{ $t('lookup.addManually') }}</button>
+          <button class="btn primary" @click="$emit('edit', { ...presetWithFormat })"><vue-feather type="edit-3" size="15" /> {{ $t('lookup.addManually') }}</button>
         </template>
       </EmptyState>
     </template>
@@ -51,6 +51,7 @@ import EmptyState from './EmptyState.vue'
 import LoadingState from './LoadingState.vue'
 import { duplicateWatcher } from '../lib/duplicates.js'
 import { lookupFor, parseQuery } from '../lib/lookup.js'
+import { defaultFormat } from '../../shared/media.js'
 import { toastError } from '../lib/toast.js'
 
 export default {
@@ -83,6 +84,12 @@ export default {
   computed: {
     mode() { return parseQuery(this.input).code ? 'code' : 'text' },
     candidates() { return [...(this.seed ? [this.seed] : []), ...(this.result?.candidates || [])] },
+    /** Format is required: when no source tells it, the type's first one is offered (and picked) */
+    presetWithFormat() {
+      const first = defaultFormat(this.type)
+      if (!first || this.preset.format || this.candidates.some((c) => c.fields.format)) return this.preset
+      return { ...this.preset, format: first }
+    },
   },
   created() {
     // Strict (same barcode / ISBN) or wide (same title and author), on what would be saved: the picks

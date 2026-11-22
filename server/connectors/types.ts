@@ -1,4 +1,4 @@
-import { matchGenre, MEDIA, fieldsFor } from '../../shared/media.js'
+import { matchGenre, fieldsFor, allowedValue } from '../../shared/media.js'
 
 export type MediaType = 'book' | 'music' | 'movie' | 'videogame' | 'custom'
 
@@ -76,8 +76,8 @@ export function candidate(
     if (val !== undefined) out[k] = val
   }
   if (out.genre) out.genre = matchGenre(type, out.genre) || out.genre.split(',')[0].trim()
-  if (out.category && !MEDIA[type].categories.includes(out.category)) delete out.category
-  if (out.format && !MEDIA[type].formats.includes(out.format)) delete out.format
+  if (!allowedValue(type, 'category', out.category)) delete out.category
+  if (!allowedValue(type, 'format', out.format)) delete out.format
   return { source: source.id, sourceName: source.name, url, type, fields: out }
 }
 

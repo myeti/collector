@@ -33,6 +33,25 @@
       <!-- Fields -->
       <div class="fields-col">
         <MediaSwitcher v-if="!editing && from !== 'review'" v-model="form.type" :types="store.enabledTypes" :counts="false" class="type-switch" />
+
+        <!-- Format: required, right under the type (book kind, music / movie medium, game platform). Custom: free, in the form. -->
+        <div v-if="formats.length" class="format-pick">
+          <label class="label" for="f-format">{{ fieldLabel('format') }} *</label>
+          <select v-if="form.type === 'videogame'" id="f-format" v-model="form.format" class="select">
+            <optgroup v-for="g in PLATFORM_GROUPS" :key="g.brand" :label="$t(`platformBrand.${g.brand}`)">
+              <option v-for="c in g.platforms" :key="c" :value="c">{{ $t(`format.${c}`) }}</option>
+            </optgroup>
+          </select>
+          <div v-else class="chips wrap" role="radiogroup" :aria-label="fieldLabel('format')">
+            <button
+              v-for="opt in formats" :key="opt" type="button" class="chip" :class="{ on: form.format === opt }"
+              role="radio" :aria-checked="form.format === opt" @click="form.format = opt"
+            >
+              {{ $t(`format.${opt}`) }}
+            </button>
+          </div>
+        </div>
+
         <DuplicateBanner :duplicate="duplicate" />
 
         <div class="panel">
@@ -41,58 +60,54 @@
               <label for="f-title">{{ $t('fields.title') }} *</label>
               <input id="f-title" ref="title" v-model="form.title" class="input title-input" :class="{ invalid: triedSave && !form.title.trim() }" required autocomplete="off" />
             </div>
+            <!-- Author and publisher: names change per type (artist / label, director / studio, studio / publisher…) -->
             <div class="field">
-              <label for="f-author">{{ $t(`fields.authorBy.${form.type}`) }}</label>
+              <label for="f-author">{{ fieldLabel('author') }}</label>
               <input id="f-author" v-model="form.author" class="input" list="dl-author" autocomplete="off" @focus="suggest('author')" />
             </div>
+            <div class="field">
+              <label for="f-editor">{{ fieldLabel('editor') }}</label>
+              <input id="f-editor" v-model="form.editor" class="input" list="dl-editor" autocomplete="off" @focus="suggest('editor')" />
+            </div>
 
-            <!-- Media-specific -->
-            <template v-for="f in specific" :key="f">
-              <div v-if="f === 'format'" class="field full">
-                <span class="label">{{ $t('fields.format') }}</span>
-                <div class="segmented accent">
-                  <button v-for="opt in formats" :key="opt" type="button" :class="{ on: form.format === opt }" @click="form.format = form.format === opt ? null : opt">
-                    {{ $t(`format.${opt}`) }}
-                  </button>
-                </div>
+            <!-- Saga and its volume share a row (about 3/4 – 1/4) -->
+            <div class="field full saga-row">
+              <div class="field">
+                <label for="f-saga">{{ fieldLabel('saga') }}</label>
+                <input id="f-saga" v-model="form.saga" class="input" autocomplete="off" list="dl-saga" @focus="suggest('saga')" />
               </div>
-              <!-- Saga and its volume share a row (about 3/4 – 1/4) -->
-              <div v-else-if="f === 'saga'" class="field full saga-row">
-                <div class="field">
-                  <label for="f-saga">{{ fieldLabel('saga') }}</label>
-                  <input id="f-saga" v-model="form.saga" class="input" autocomplete="off" list="dl-saga" @focus="suggest('saga')" />
-                </div>
-                <div class="field">
-                  <label for="f-volume">{{ fieldLabel('volume') }}</label>
-                  <input id="f-volume" v-model="form.volume" class="input" autocomplete="off" inputmode="numeric" />
-                </div>
+              <div class="field">
+                <label for="f-volume">{{ fieldLabel('volume') }}</label>
+                <input id="f-volume" v-model="form.volume" class="input" autocomplete="off" inputmode="numeric" />
               </div>
-              <div v-else-if="f !== 'volume'" class="field">
-                <label :for="`f-${f}`">{{ fieldLabel(f) }}</label>
-                <input
-                  :id="`f-${f}`" v-model="form[f]" class="input" autocomplete="off"
-                  :class="{ mono: f === 'isbn' }" :inputmode="f === 'isbn' ? 'numeric' : undefined"
-                  :list="SUGGESTABLE.includes(f) ? `dl-${f}` : undefined" @focus="suggest(f)"
-                />
+            </div>
+
+            <!-- Custom items: a free format (the other types pick theirs above the form) -->
+            <div v-if="!formats.length" class="field">
+              <label for="f-format-free">{{ fieldLabel('format') }}</label>
+              <input id="f-format-free" v-model="form.format" class="input" list="dl-format" @focus="suggest('format')" />
+            </div>
+
+            <!-- Category: music, movies (a list), custom items (free text); books and games have none -->
+            <template v-if="hasCategory">
+              <div v-if="categories.length" class="field">
+                <label for="f-category">{{ fieldLabel('category') }}</label>
+                <select id="f-category" v-model="form.category" class="select">
+                  <option :value="null">—</option>
+                  <option v-for="c in categories" :key="c" :value="c">{{ $t(`category.${form.type}.${c}`) }}</option>
+                  <option v-if="form.category && !categories.includes(form.category)" :value="form.category">{{ form.category }}</option>
+                </select>
+              </div>
+              <div v-else class="field">
+                <label for="f-category-free">{{ fieldLabel('category') }}</label>
+                <input id="f-category-free" v-model="form.category" class="input" list="dl-category" @focus="suggest('category')" />
               </div>
             </template>
 
-            <div v-if="categories.length" class="field">
-              <label for="f-category">{{ categoryLabel }}</label>
-              <select id="f-category" v-model="form.category" class="select">
-                <option :value="null">—</option>
-                <template v-if="form.type === 'videogame'">
-                  <optgroup v-for="g in PLATFORM_GROUPS" :key="g.brand" :label="$t(`platformBrand.${g.brand}`)">
-                    <option v-for="c in g.platforms" :key="c" :value="c">{{ $t(`category.videogame.${c}`) }}</option>
-                  </optgroup>
-                </template>
-                <option v-for="c in categories" v-else :key="c" :value="c">{{ $t(`category.${form.type}.${c}`) }}</option>
-                <option v-if="form.category && !categories.includes(form.category)" :value="form.category">{{ form.category }}</option>
-              </select>
-            </div>
-            <div v-else class="field">
-              <label for="f-category-free">{{ categoryLabel }}</label>
-              <input id="f-category-free" v-model="form.category" class="input" list="dl-category" @focus="suggest('category')" />
+            <!-- Media-specific (books: ISBN) -->
+            <div v-for="f in specific" :key="f" class="field">
+              <label :for="`f-${f}`">{{ fieldLabel(f) }}</label>
+              <input :id="`f-${f}`" v-model="form[f]" class="input" :class="{ mono: f === 'isbn' }" autocomplete="off" :inputmode="f === 'isbn' ? 'numeric' : undefined" />
             </div>
 
             <div class="field">
@@ -203,11 +218,11 @@ import { api, qs } from '../lib/api.js'
 import { store } from '../lib/store.js'
 import { toast, toastError } from '../lib/toast.js'
 import { sparkle } from '../lib/sparkle.js'
-import { MEDIA, CONDITIONS, ALL_FIELDS, PLATFORM_GROUPS } from '../../shared/media.js'
+import { MEDIA, CONDITIONS, ALL_FIELDS, PLATFORM_GROUPS, allowedValue } from '../../shared/media.js'
 import { queryText } from '../lib/lookup.js'
 import { currentItem, finishItem, reviewPath } from '../lib/addSession.js'
 
-const SUGGESTABLE = ['author', 'saga', 'editor', 'label', 'director', 'genre', 'category']
+const SUGGESTABLE = ['author', 'editor', 'saga', 'genre', 'category', 'format']
 
 function blank(type) {
   const f = Object.fromEntries(ALL_FIELDS.map((k) => [k, null]))
@@ -241,10 +256,7 @@ export default {
   },
   computed: {
     specific() { return MEDIA[this.form.type].fields },
-    categoryLabel() {
-      const key = `fields.categoryBy.${this.form.type}`
-      return this.$te(key) ? this.$t(key) : this.$t('fields.category')
-    },
+    hasCategory() { return !MEDIA[this.form.type].hidden?.includes('category') },
     categories() { return MEDIA[this.form.type].categories },
     genres() { return MEDIA[this.form.type].genres },
     formats() { return MEDIA[this.form.type].formats },
@@ -252,7 +264,7 @@ export default {
     /** What the duplicate check looks at */
     identity() {
       const f = this.form
-      return { type: f.type, title: f.title.trim(), author: f.author, director: f.director, volume: f.volume, category: f.category, isbn: f.isbn, barcode: f.barcode }
+      return { type: f.type, title: f.title.trim(), author: f.author, volume: f.volume, format: f.format, isbn: f.isbn, barcode: f.barcode }
     },
     dateValid() { return !this.form.release_date || /^\d{4}(-\d{2}(-\d{2})?)?$/.test(this.form.release_date.trim()) },
     genreSelect: {
@@ -275,8 +287,10 @@ export default {
       store.applyAccent(t)
       this.suggestions = {}
       this.syncGenreMode()
-      if (this.form.category && !MEDIA[t].categories.includes(this.form.category)) this.form.category = null
-      if (this.form.format && !MEDIA[t].formats.includes(this.form.format)) this.form.format = null
+      // Values that do not exist for the new type (a platform is not a book kind…)
+      if (!allowedValue(t, 'category', this.form.category) || MEDIA[t].hidden?.includes('category')) this.form.category = null
+      if (!allowedValue(t, 'format', this.form.format)) this.form.format = null
+      this.ensureFormat()
     },
   },
   created() {
@@ -304,6 +318,7 @@ export default {
       Object.assign(this.form, item.picked || {})
     }
     this.syncGenreMode()
+    this.ensureFormat()
     this.watchDuplicate(this.form.type, this.identity, this.editing ? this.$route.params.id : undefined)
     this.$nextTick(() => { if (!this.editing && !this.form.title) this.$refs.title?.focus() })
   },
@@ -314,10 +329,15 @@ export default {
       else if (this.from === 'review') this.$router.replace(reviewPath(this.form.type))
       else this.$router.push(this.editing ? `/item/${this.$route.params.id}` : `/c/${this.form.type}`)
     },
+    /** A field's name for this media type: fields.<field>By.<type> (author, editor, format, volume), else fields.<field> */
     fieldLabel(f) {
-      if (f === 'editor' && this.$te(`fields.editorBy.${this.form.type}`)) return this.$t(`fields.editorBy.${this.form.type}`)
-      if (f === 'volume' && this.$te(`fields.volumeBy.${this.form.type}`)) return this.$t(`fields.volumeBy.${this.form.type}`)
-      return this.$t(`fields.${f}`)
+      const key = `fields.${f}By.${this.form.type}`
+      return this.$te(key) ? this.$t(key) : this.$t(`fields.${f}`)
+    },
+    /** Format is required where the type has a list: the first one until the user picks another. */
+    ensureFormat() {
+      const list = MEDIA[this.form.type].formats
+      if (list.length && !list.includes(this.form.format)) this.form.format = list[0]
     },
     syncGenreMode() {
       this.customGenre = !!this.form.genre && !this.genres.includes(this.form.genre)
@@ -420,6 +440,8 @@ export default {
 .center { text-align: center; display: flex; align-items: center; justify-content: center; gap: 4px; margin: 0; }
 .fields-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .type-switch { align-self: flex-start; }
+.format-pick { display: flex; flex-direction: column; gap: 6px; }
+.format-pick .select { max-width: 320px; }
 .title-input { font-family: var(--font-display); font-size: 17px; font-weight: 400; }
 .invalid { border-color: var(--danger) !important; box-shadow: 0 0 0 3px color-mix(in oklab, var(--danger) 16%, transparent) !important; }
 .input-wrap > .input.no-lead { padding-left: 12px; padding-right: 96px; }

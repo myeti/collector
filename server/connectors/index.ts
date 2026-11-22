@@ -61,9 +61,8 @@ export async function lookupBarcode(rawCode: string, ctx: Ctx): Promise<LookupRe
     const hint = productHits[0].fields
     for (const e of extra) {
       e.fields.barcode ??= code
-      if (hint.format) e.fields.format ??= hint.format
-      // The scanned box tells the exact platform, while game APIs list every platform of the game.
-      if (type === 'videogame' && hint.category) e.fields.category = hint.category
+      // The scanned box tells the exact format (and a game's platform, while game APIs list every platform of the game)
+      if (hint.format) e.fields.format = type === 'videogame' ? hint.format : e.fields.format ?? hint.format
     }
     result.candidates.push(...extra)
   }

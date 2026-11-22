@@ -96,10 +96,10 @@ function rules(type: MediaType, locale: string) {
   const m = MEDIA[type]
   return [
     'Only fill what you can read on the image or are highly confident about; use null otherwise. Never invent barcodes or ISBNs.',
-    '"author" is the writer / artist / band / studio. "release_date" is YYYY or YYYY-MM-DD.',
+    `"author" is the ${{ book: 'writer', music: 'artist or band', movie: 'director', videogame: 'developer studio', custom: 'maker' }[type]}; "editor" the ${{ book: 'publisher', music: 'record label', movie: 'production studio', videogame: 'publisher', custom: 'brand' }[type]}. "release_date" is YYYY or YYYY-MM-DD.`,
     m.genres.length ? `"genre" should be one of: ${m.genres.join(', ')} (or a short free label).` : '',
-    m.fields.includes('volume') ? '"saga" is the series name and "volume" its number, when the item belongs to a series.' : '',
-    type === 'videogame' ? '"category" is the platform; the case design often tells it.' : '',
+    '"saga" is the series name and "volume" its number, when the item belongs to a series.',
+    type === 'videogame' ? '"format" is the platform; the case design often tells it.' : '',
     `Keep titles in the language printed on the item. Interface language: ${locale}.`,
   ].filter(Boolean).map((r) => `- ${r}`).join('\n')
 }
@@ -111,7 +111,7 @@ const imagePart = (jpeg: Buffer) => ({ type: 'image' as const, image: jpeg, medi
 const BULK_HINTS: Record<string, string> = {
   book: 'Books seen by their spines or covers. Spine text is often vertical. For comics and mangas, set "saga" and "volume" when a series name and number are visible.',
   music: 'CDs, vinyls or tapes seen by their spines or covers. "author" is the artist or band, "title" the album.',
-  movie: 'DVD / Blu-ray cases seen by their spines or covers. "director" only if printed.',
+  movie: 'DVD / Blu-ray cases seen by their spines or covers. "author" (the director) only if printed.',
   videogame: 'Video game cases seen by their spines or covers.',
   custom: 'Collectible objects.',
 }
