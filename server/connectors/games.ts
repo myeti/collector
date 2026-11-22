@@ -14,6 +14,7 @@ const rawg: Connector = {
   media: ['videogame'],
   keys: [{ id: 'rawg', label: 'API key' }],
   docs: 'https://rawg.io/apidocs',
+  languages: ['en'],
   async search(query, ctx) {
     const base = 'https://api.rawg.io/api/games'
     const data = await fetchJson(`${base}?key=${ctx.keys.rawg}&search=${encodeURIComponent(query)}&page_size=4`)
@@ -55,6 +56,7 @@ const igdb: Connector = {
   media: ['videogame'],
   keys: [{ id: 'igdbClientId', label: 'Twitch client ID' }, { id: 'igdbClientSecret', label: 'Twitch client secret' }],
   docs: 'https://api-docs.igdb.com/#account-creation',
+  languages: ['en'],
   async search(query, ctx) {
     const token = await igdbAuth(ctx.keys.igdbClientId, ctx.keys.igdbClientSecret)
     const body = `search "${query.replace(/"/g, '')}"; limit 5;

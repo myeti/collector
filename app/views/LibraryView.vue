@@ -117,6 +117,13 @@
               <option v-for="g in genres" :key="g" :value="g">{{ genreLabel(g) }}</option>
             </select>
           </div>
+          <div class="field">
+            <span class="label">{{ $t('fields.language') }}</span>
+            <div class="segmented accent">
+              <button :class="{ on: !filters.language }" @click="filters.language = ''">{{ $t('common.all') }}</button>
+              <button v-for="l in LANGUAGES" :key="l" :class="{ on: filters.language === l }" @click="filters.language = l">{{ languageName(l) }}</button>
+            </div>
+          </div>
           <div v-if="members.length > 1" class="field">
             <label for="f-owner">{{ $t('library.owner') }}</label>
             <select id="f-owner" v-model="filters.owner" class="select">
@@ -211,12 +218,13 @@ import InstallHint from '../components/InstallHint.vue'
 import { api, qs } from '../lib/api.js'
 import { store } from '../lib/store.js'
 import { toastError } from '../lib/toast.js'
-import { MEDIA } from '../../shared/media.js'
+import { MEDIA, LANGUAGES } from '../../shared/media.js'
+import { languageName } from '../lib/format.js'
 import { personColor, initial } from '../lib/people.js'
 
 const PAGE = 48
 // owner: whose items (in a family), the user's saved choice (store.owner)
-const emptyFilters = (owner = store.owner) => ({ category: '', consumed: '', digitalized: '', format: '', genre: '', owner, sort: 'title' })
+const emptyFilters = (owner = store.owner) => ({ category: '', consumed: '', digitalized: '', format: '', genre: '', language: '', owner, sort: 'title' })
 
 export default {
   name: 'LibraryView',
@@ -225,6 +233,7 @@ export default {
     return {
       store,
       MEDIA,
+      LANGUAGES,
       q: this.$route.query.q || '',
       filters: emptyFilters(),
       showFilters: false,
@@ -266,7 +275,7 @@ export default {
     /** Filters of the panel (the quick bar's own value is visible, so not counted in the badge). */
     activeFilters() {
       const f = this.filters
-      const fields = ['category', 'consumed', 'digitalized', 'format', 'genre'].filter((k) => k !== this.quickField)
+      const fields = ['category', 'consumed', 'digitalized', 'format', 'genre', 'language'].filter((k) => k !== this.quickField)
       // Owner: counted when it is not the default (own items in a family, everyone otherwise)
       return [...fields.map((k) => f[k]), f.sort !== 'title' ? 1 : '', f.owner !== this.defaultOwner ? 1 : ''].filter(Boolean).length
     },
@@ -396,6 +405,7 @@ export default {
     },
     personColor,
     initial,
+    languageName,
     toggleFilters() {
       this.showFilters = !this.showFilters
       // Desktop, opened from further down the shelf: bring the panel up, right under the pinned bar (phones: it floats)

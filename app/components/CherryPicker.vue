@@ -84,6 +84,7 @@
 import CoverImage from './CoverImage.vue'
 import { fieldsFor } from '../../shared/media.js'
 import { norm } from '../../shared/text.js'
+import { languageName } from '../lib/format.js'
 
 const SKIP = new Set(['cover', 'consumed', 'digitalized', 'condition'])
 
@@ -191,6 +192,7 @@ export default {
       return this.$t(`fields.${f}`)
     },
     display(field, value) {
+      if (field === 'language') return languageName(value)
       const key = field === 'format' ? `format.${value}` : ['category', 'genre'].includes(field) ? `${field}.${this.type}.${value}` : null
       return key && this.$te(key) ? this.$t(key) : value
     },

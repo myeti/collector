@@ -45,6 +45,16 @@
         </div>
         <button class="btn primary" style="height: var(--h-lg)" :disabled="query.trim().length < 2 || step === 'loading'">{{ $t('search.go') }}</button>
       </form>
+      <!-- Results in one language only: asks the sources that have it (and passes it to those that can filter) -->
+      <div class="lang-pick" role="radiogroup" :aria-label="$t('fields.language')">
+        <span class="faint">{{ $t('fields.language') }}</span>
+        <button
+          v-for="l in ['', ...LANGUAGES]" :key="l" type="button" class="chip" :class="{ on: lang === l }" role="radio" :aria-checked="lang === l"
+          @click="setLang(l)"
+        >
+          {{ l ? languageName(l) : $t('common.all') }}
+        </button>
+      </div>
 
       <LoadingState v-if="step === 'loading'" :text="$t('lookup.searching')" />
 
@@ -73,10 +83,10 @@ import FileDrop from '../components/FileDrop.vue'
 import { api, qs } from '../lib/api.js'
 import { store } from '../lib/store.js'
 import { toastError } from '../lib/toast.js'
-import { norm } from '../lib/format.js'
+import { norm, languageName } from '../lib/format.js'
 import { queryText } from '../lib/lookup.js'
 import { startSession, reviewPath } from '../lib/addSession.js'
-import { MEDIA, isIsbn } from '../../shared/media.js'
+import { MEDIA, LANGUAGES, isIsbn } from '../../shared/media.js'
 
 export default {
   name: 'AddView',
@@ -85,10 +95,12 @@ export default {
     return {
       store,
       MEDIA,
+      LANGUAGES,
       type: this.$route.params.type,
       mode: this.$route.params.mode,
       step: 'acquire', // acquire · loading · list
       query: this.$route.query.q || '',
+      lang: LANGUAGES.includes(this.$route.query.lang) ? this.$route.query.lang : '', // '' = every language
       rows: [], // photo detections or search results (grouped)
       selected: [],
       sources: [],
@@ -108,6 +120,7 @@ export default {
     if (this.photo) URL.revokeObjectURL(this.photo)
   },
   methods: {
+    languageName,
     back() {
       if (this.step === 'list' && this.mode === 'photo') return this.restart()
       if (window.history.state?.back) this.$router.back()
@@ -158,13 +171,17 @@ export default {
     },
 
     // --- Search: results from every source, the same work merged into one row
+    setLang(l) {
+      this.lang = l
+      if (this.query.trim().length >= 2) this.onSearch()
+    },
     async onSearch() {
       const q = this.query.trim()
       if (q.length < 2) return
-      this.$router.replace({ query: { q } })
+      this.$router.replace({ query: { q, lang: this.lang || undefined } })
       this.step = 'loading'
       try {
-        const result = await api.get(`/lookup${qs({ q, type: this.type })}`)
+        const result = await api.get(`/lookup${qs({ q, type: this.type, lang: this.lang })}`)
         this.sources = result.sources || []
         this.errors = result.errors || []
         const groups = new Map()
@@ -196,7 +213,8 @@ export default {
             seed: { source: 'llm', sourceName: r.sourceName || 'AI', type: this.type, fields: r.fields },
             preset: this.cover && rows.length === 1 ? { cover: this.cover } : {},
           }
-        : { query: { text: queryText(r.fields, this.type) }, known: r.known })))
+        // Narrowed to a language: the items picked are in it (and asking again keeps to it)
+        : { query: { text: queryText(r.fields, this.type), lang: this.lang || undefined }, known: r.known, preset: this.lang ? { language: this.lang } : {} })))
     },
   },
 }
@@ -205,7 +223,9 @@ export default {
 <style scoped>
 .narrow-ish { max-width: 980px; }
 .sub { margin: 1px 0 0; display: flex; align-items: center; gap: 5px; font-size: 12px; }
-.search-form { display: flex; gap: 8px; margin-bottom: 14px; }
+.search-form { display: flex; gap: 8px; margin-bottom: 8px; }
+.lang-pick { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; font-size: 12px; }
+.lang-pick .chip { height: 28px; }
 .meta-line { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 11.5px; margin-bottom: 14px; }
 .err { display: inline-flex; align-items: center; gap: 4px; color: color-mix(in oklab, var(--danger) 70%, var(--faint)); cursor: help; }
 </style>

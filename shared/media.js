@@ -46,13 +46,18 @@ export function matchPlatform(raw) {
   return null
 }
 
+// Languages an item can be in: ISO 639-1 codes. Add one here to offer it everywhere
+// (forms, filters, search); its name is the browser's own (Intl.DisplayNames), in the interface language.
+export const LANGUAGES = ['fr', 'en']
+
 // Every item has these fields; a media type may hide some (`hidden`) and add its own (`fields`).
 // author: author, artist, director or studio · editor: publisher, label, studio or brand (labels per type, see i18n).
 // format: the physical kind (book: novel, comic…; music: vinyl, CD…; movie: DVD…; game: the platform).
 // description: synopsis from metadata sources. comment: the user's own note, never filled by sources.
 // digitalized: owned as a digital copy (ebook, files, digital game…) rather than a physical one.
+// language: the item's language (one of LANGUAGES), optional.
 export const COMMON_FIELDS = [
-  'title', 'author', 'editor', 'cover', 'genre', 'category', 'format', 'saga', 'volume',
+  'title', 'author', 'editor', 'cover', 'genre', 'category', 'format', 'saga', 'volume', 'language',
   'release_date', 'condition', 'barcode', 'consumed', 'digitalized', 'description', 'comment',
 ]
 
@@ -147,8 +152,9 @@ export function defaultFormat(type) {
   return MEDIA[type]?.formats?.[0] || null
 }
 
-/** A value for a field with a fixed list (category, format): one of the list, or anything when the list is empty. */
+/** A value for a field with a fixed list (category, format, language): one of the list, or anything when the list is empty. */
 export function allowedValue(type, field, value) {
+  if (field === 'language') return !value || LANGUAGES.includes(value)
   const list = field === 'format' ? MEDIA[type]?.formats : MEDIA[type]?.categories
   return !value || !list?.length || list.includes(value)
 }

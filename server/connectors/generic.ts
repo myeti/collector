@@ -31,6 +31,7 @@ const upcitemdb: Connector = {
   keys: [{ id: 'upcitemdb', label: 'API key (optional, free trial otherwise)' }],
   keysOptional: true,
   docs: 'https://www.upcitemdb.com/wp/docs/main/development/',
+  languages: ['en'],
   async barcode(code, ctx) {
     const key = ctx.keys.upcitemdb
     const url = key
@@ -74,6 +75,7 @@ const goUpc: Connector = {
   media: ['*'],
   keys: [{ id: 'goUpc', label: 'API key' }],
   docs: 'https://go-upc.com/api',
+  languages: ['en'],
   async barcode(code, ctx) {
     const data = await fetchJson(`https://go-upc.com/api/v1/code/${code}`, {
       headers: { Authorization: `Bearer ${ctx.keys.goUpc}` },

@@ -29,6 +29,8 @@ export function sanitize(body: any, type: string) {
     if (v === '' || v === undefined) v = null
     if (v !== null) v = String(v).trim()
     if (f === 'condition' && v && !CONDITIONS.includes(v)) throw badRequest('invalid_condition')
+    if (f === 'language' && v) v = v.toLowerCase()
+    if (f === 'language' && !allowedValue(type, 'language', v)) throw badRequest('invalid_language')
     if (f === 'format' && !allowedValue(type, 'format', v)) throw badRequest('invalid_format')
     if (f === 'format' && !v) v = defaultFormat(type) // required: cannot be emptied
     if ((f === 'barcode' || f === 'isbn') && v) v = v.replace(/[^0-9X]/gi, '').toUpperCase() || null
@@ -77,7 +79,7 @@ async function releaseCover(cover: string | null, ownerId: string) {
 }
 
 itemsRouter.get('/', async (req: any, res) => {
-  const { type, q, category, genre, consumed, digitalized, format, condition, sort = 'title' } = req.query
+  const { type, q, category, genre, consumed, digitalized, format, condition, language, sort = 'title' } = req.query
   const limit = Math.min(Number(req.query.limit) || 60, 200)
   const offset = Math.max(Number(req.query.offset) || 0, 0)
   const where: any = { user_id: { [Op.in]: await shelfOwners(req) } }
@@ -85,6 +87,7 @@ itemsRouter.get('/', async (req: any, res) => {
   if (category) where.category = category
   if (genre) where.genre = genre
   if (format) where.format = format
+  if (language) where.language = language
   if (condition) where.condition = condition
   if (consumed === 'true' || consumed === 'false') where.consumed = consumed === 'true'
   if (digitalized === 'true' || digitalized === 'false') where.digitalized = digitalized === 'true'

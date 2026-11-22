@@ -1,7 +1,19 @@
 // Small display helpers shared by the library list and grid.
 import { PLATFORM_LABELS } from '../../shared/media.js'
+import { i18n } from '../i18n/index.js'
 
 export { norm } from '../../shared/text.js'
+
+/** "fr" -> "Français" (in French) / "French" (in English): names come from the browser, any ISO 639-1 code works */
+export function languageName(code) {
+  if (!code) return ''
+  try {
+    const name = new Intl.DisplayNames([i18n.global.locale.value], { type: 'language' }).of(code)
+    return name.charAt(0).toUpperCase() + name.slice(1)
+  } catch {
+    return code
+  }
+}
 
 /** Author, artist, director or studio, depending on the media type */
 export function creator(item) {

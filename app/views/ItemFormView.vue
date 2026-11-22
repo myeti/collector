@@ -126,6 +126,13 @@
             </div>
 
             <div class="field">
+              <label for="f-language">{{ $t('fields.language') }}</label>
+              <select id="f-language" v-model="form.language" class="select">
+                <option :value="null">—</option>
+                <option v-for="l in LANGUAGES" :key="l" :value="l">{{ languageName(l) }}</option>
+              </select>
+            </div>
+            <div class="field">
               <label for="f-release">{{ $t('fields.release_date') }}</label>
               <input id="f-release" v-model="form.release_date" class="input" :class="{ invalid: !dateValid }" :placeholder="$t('fields.releasePlaceholder')" inputmode="numeric" />
             </div>
@@ -218,7 +225,8 @@ import { api, qs } from '../lib/api.js'
 import { store } from '../lib/store.js'
 import { toast, toastError } from '../lib/toast.js'
 import { sparkle } from '../lib/sparkle.js'
-import { MEDIA, CONDITIONS, ALL_FIELDS, PLATFORM_GROUPS, allowedValue } from '../../shared/media.js'
+import { MEDIA, CONDITIONS, ALL_FIELDS, PLATFORM_GROUPS, LANGUAGES, allowedValue } from '../../shared/media.js'
+import { languageName } from '../lib/format.js'
 import { queryText } from '../lib/lookup.js'
 import { currentItem, finishItem, reviewPath } from '../lib/addSession.js'
 
@@ -237,6 +245,7 @@ export default {
       store,
       CONDITIONS,
       PLATFORM_GROUPS,
+      LANGUAGES,
       SUGGESTABLE,
       form: blank(this.$route.params.type || store.type),
       editing: this.$route.name === 'edit',
@@ -319,11 +328,14 @@ export default {
     }
     this.syncGenreMode()
     this.ensureFormat()
+    // A new item is in the user's language until told otherwise (optional: editing never fills it in)
+    if (!this.editing && !this.form.language && LANGUAGES.includes(store.user?.locale)) this.form.language = store.user.locale
     this.watchDuplicate(this.form.type, this.identity, this.editing ? this.$route.params.id : undefined)
     this.$nextTick(() => { if (!this.editing && !this.form.title) this.$refs.title?.focus() })
   },
   beforeUnmount() { store.applyAccent() },
   methods: {
+    languageName,
     back() {
       if (window.history.state?.back) this.$router.back()
       else if (this.from === 'review') this.$router.replace(reviewPath(this.form.type))

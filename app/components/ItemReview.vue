@@ -120,7 +120,7 @@ export default {
       this.watchDuplicate(this.type, fields, this.exclude)
     },
     research() {
-      if (this.input.trim().length >= 2) this.search(parseQuery(this.input), true)
+      if (this.input.trim().length >= 2) this.search({ ...parseQuery(this.input), lang: this.query.lang }, true)
     },
   },
 }

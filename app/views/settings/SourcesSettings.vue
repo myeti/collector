@@ -21,6 +21,8 @@
             <span class="grow"></span>
             <span class="caps hide-sm">
               <span v-for="cap in c.capabilities" :key="cap" class="badge">{{ $t(`settings.capabilities.${cap}`) }}</span>
+              <!-- Sources limited to some languages say which (the others cover any) -->
+              <span v-if="c.languages" class="badge" :title="$t('settings.sourceLanguages', { list: c.languages.map(languageName).join(', ') })">{{ c.languages.join(' · ').toUpperCase() }}</span>
             </span>
             <span v-if="!c.keys.length" class="badge success">{{ $t('settings.free') }}</span>
             <span v-else-if="configured(c)" class="badge accent"><vue-feather type="key" size="10" /> {{ $t('settings.keySet') }}</span>
@@ -108,7 +110,7 @@
           </span>
           <span class="grow">
             <strong>{{ c.name }}</strong>
-            <small>{{ c.capabilities.map((cap) => $t(`settings.capabilities.${cap}`)).join(' · ') }}</small>
+            <small>{{ [...c.capabilities.map((cap) => $t(`settings.capabilities.${cap}`)), c.languages && $t('settings.sourceLanguages', { list: c.languages.map(languageName).join(', ') })].filter(Boolean).join(' · ') }}</small>
           </span>
           <vue-feather type="plus" size="15" class="faint" />
         </button>
@@ -124,6 +126,7 @@ import { api } from '../../lib/api.js'
 import { toast, toastError } from '../../lib/toast.js'
 import { settings, applySettings } from '../../lib/settings.js'
 import { MEDIA, MEDIA_TYPES } from '../../../shared/media.js'
+import { languageName } from '../../lib/format.js'
 
 const llmForm = (s) => ({ provider: s.llm.provider, baseUrl: s.llm.baseUrl, model: s.llm.model, apiKey: '' })
 
@@ -153,6 +156,7 @@ export default {
     },
   },
   methods: {
+    languageName,
     apply(s) {
       applySettings(s)
       this.pending = this.pending.filter((id) => !s.connectors.find((c) => c.id === id)?.enabled)

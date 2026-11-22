@@ -14,14 +14,14 @@ export function parseQuery(input) {
 }
 
 /**
- * { code } and/or { text } -> { type, candidates, sources, errors }.
+ * { code } and/or { text } (and optionally { lang }: sources in that language only) -> { type, candidates, sources, errors }.
  * type may differ from the one asked: an ISBN scanned from the music tab is a book.
  * fresh: ask again (the "Search" button), whatever was found before.
  */
 export async function lookupFor(query, type, { fresh = false } = {}) {
-  const key = JSON.stringify([type, query.code || '', query.text || ''])
+  const key = JSON.stringify([type, query.code || '', query.text || '', query.lang || ''])
   if (fresh || !cache.has(key)) {
-    const run = api.get(`/lookup${qs({ code: query.code, q: query.text, type })}`)
+    const run = api.get(`/lookup${qs({ code: query.code, q: query.text, lang: query.lang, type })}`)
     cache.set(key, run)
     // A failure, or a source that failed (rate limit, timeout…), is asked again next time
     run.then((r) => { if (r.errors?.length) cache.delete(key) }, () => cache.delete(key))

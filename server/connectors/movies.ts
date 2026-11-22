@@ -13,7 +13,8 @@ const TMDB_GENRES: Record<number, string> = {
 function tmdbFetch(path: string, ctx: Ctx, params: Record<string, string> = {}) {
   const key = ctx.keys.tmdb
   const bearer = key.startsWith('eyJ') // v4 read access token vs v3 api key
-  const qs = new URLSearchParams({ language: ctx.locale === 'fr' ? 'fr-FR' : 'en-US', ...params })
+  const lang = ctx.language || ctx.locale
+  const qs = new URLSearchParams({ language: lang === 'fr' ? 'fr-FR' : lang === 'en' ? 'en-US' : lang, ...params })
   if (!bearer) qs.set('api_key', key)
   return fetchJson(`https://api.themoviedb.org/3${path}?${qs}`, {
     headers: bearer ? { Authorization: `Bearer ${key}` } : {},
@@ -57,6 +58,7 @@ const omdb: Connector = {
   media: ['movie'],
   keys: [{ id: 'omdb', label: 'API key' }],
   docs: 'https://www.omdbapi.com/apikey.aspx',
+  languages: ['en'],
   async search(query, ctx) {
     const base = `https://www.omdbapi.com/?apikey=${ctx.keys.omdb}`
     const data = await fetchJson(`${base}&s=${encodeURIComponent(query)}`)

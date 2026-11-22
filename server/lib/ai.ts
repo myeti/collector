@@ -10,7 +10,7 @@ import { createMistral } from '@ai-sdk/mistral'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { z } from 'zod'
 import { publicFetch } from './safe-fetch.ts'
-import { MEDIA, fieldsFor } from '../../shared/media.js'
+import { MEDIA, fieldsFor, LANGUAGES } from '../../shared/media.js'
 import { candidate } from '../connectors/types.ts'
 import type { Candidate, MediaType } from '../connectors/types.ts'
 import type { LlmConfig } from './secrets.ts'
@@ -84,6 +84,7 @@ function itemSchema(type: MediaType, exclude: string[] = []) {
     if (f === 'title') shape.title = z.string().describe('Title as printed')
     else if (f === 'category' && m.categories.length) shape.category = choice(m.categories)
     else if (f === 'format' && m.formats.length) shape.format = choice(m.formats)
+    else if (f === 'language') shape.language = choice(LANGUAGES)
     else shape[f] = z.string().nullable().default(null).catch(null)
   }
   return z.object(shape)
@@ -99,6 +100,7 @@ function rules(type: MediaType, locale: string) {
     `"author" is the ${{ book: 'writer', music: 'artist or band', movie: 'director', videogame: 'developer studio', custom: 'maker' }[type]}; "editor" the ${{ book: 'publisher', music: 'record label', movie: 'production studio', videogame: 'publisher', custom: 'brand' }[type]}. "release_date" is YYYY or YYYY-MM-DD.`,
     m.genres.length ? `"genre" should be one of: ${m.genres.join(', ')} (or a short free label).` : '',
     '"saga" is the series name and "volume" its number, when the item belongs to a series.',
+    `"language" is the language of the text printed on the item (${LANGUAGES.join(', ')}), null if another one.`,
     type === 'videogame' ? '"format" is the platform; the case design often tells it.' : '',
     `Keep titles in the language printed on the item. Interface language: ${locale}.`,
   ].filter(Boolean).map((r) => `- ${r}`).join('\n')

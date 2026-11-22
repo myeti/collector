@@ -6,6 +6,8 @@ export interface Ctx {
   keys: Record<string, string>
   type: MediaType
   locale: string
+  /** Results wanted in this language (ISO 639-1), when the user narrowed the search */
+  language?: string
 }
 
 export interface Candidate {
@@ -24,6 +26,8 @@ export interface Connector {
   keys: { id: string; label: string }[]
   keysOptional?: boolean
   docs: string
+  /** Languages its results can be in (ISO 639-1); absent: any language. A search narrowed to a language skips the others. */
+  languages?: string[]
   barcode?: (code: string, ctx: Ctx) => Promise<Candidate[]>
   search?: (query: string, ctx: Ctx) => Promise<Candidate[]>
 }
@@ -78,6 +82,8 @@ export function candidate(
   if (out.genre) out.genre = matchGenre(type, out.genre) || out.genre.split(',')[0].trim()
   if (!allowedValue(type, 'category', out.category)) delete out.category
   if (!allowedValue(type, 'format', out.format)) delete out.format
+  if (out.language) out.language = String(out.language).toLowerCase().slice(0, 2)
+  if (!allowedValue(type, 'language', out.language)) delete out.language
   return { source: source.id, sourceName: source.name, url, type, fields: out }
 }
 

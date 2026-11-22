@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import multer from 'multer'
-import { MEDIA_TYPES } from '../../shared/media.js'
+import { MEDIA_TYPES, LANGUAGES } from '../../shared/media.js'
 import { findItem } from '../connectors/index.ts'
 import type { Ctx, MediaType } from '../connectors/index.ts'
 import { readSecrets } from '../lib/secrets.ts'
@@ -15,7 +15,8 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 
 
 function ctxFor(req: any, rawType: any): Ctx {
   const type = (MEDIA_TYPES.includes(rawType) ? rawType : 'book') as MediaType
-  return { keys: readSecrets(req.user).keys, type, locale: req.user.locale || 'en' }
+  const language = LANGUAGES.includes(req.query?.lang) ? req.query.lang : undefined
+  return { keys: readSecrets(req.user).keys, type, locale: req.user.locale || 'en', language }
 }
 
 /**

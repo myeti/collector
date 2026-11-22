@@ -109,6 +109,7 @@ import { toast, toastError } from '../lib/toast.js'
 import { sparkle, vibrate } from '../lib/sparkle.js'
 import { MEDIA, CONDITIONS } from '../../shared/media.js'
 import { personColor, initial } from '../lib/people.js'
+import { languageName } from '../lib/format.js'
 
 export default {
   name: 'ItemView',
@@ -147,6 +148,7 @@ export default {
       const t = (k) => this.$t(`fields.${k}`)
       const rows = [
         ['release_date', this.formatDate(i.release_date)],
+        ['language', languageName(i.language)],
         ['editor', i.editor, this.$te(`fields.editorBy.${i.type}`) ? this.$t(`fields.editorBy.${i.type}`) : t('editor')],
         ['isbn', i.isbn, null, true],
         ['barcode', i.barcode !== i.isbn ? i.barcode : null, null, true],

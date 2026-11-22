@@ -21,6 +21,10 @@ function sagaHints(title?: string, seriesHint?: string) {
   return seriesHint ? { saga: seriesHint } : {}
 }
 
+// Open Library speaks MARC language codes
+const MARC: Record<string, string> = { fr: 'fre', en: 'eng', de: 'ger', es: 'spa', it: 'ita', pt: 'por', nl: 'dut', ja: 'jpn' }
+const ISO: Record<string, string> = Object.fromEntries(Object.entries(MARC).map(([iso, marc]) => [marc, iso]))
+
 // ---------------------------------------------------------------- Google Books
 const googleBooks: Connector = {
   id: 'googleBooks',
@@ -34,6 +38,7 @@ const googleBooks: Connector = {
   },
   async search(query, ctx) {
     const params = new URLSearchParams({ q: query, maxResults: '5', printType: 'all' })
+    if (ctx.language) params.set('langRestrict', ctx.language)
     if (ctx.keys.googleBooks) params.set('key', ctx.keys.googleBooks)
     const data = await fetchJson(`https://www.googleapis.com/books/v1/volumes?${params}`)
     return take(data?.items, 5).map((it: any) => {
@@ -49,6 +54,7 @@ const googleBooks: Connector = {
         genre: subjects,
         format: bookFormat(`${subjects} ${v.title}`),
         isbn,
+        language: v.language,
         cover: img?.replace('&edge=curl', '').replace('zoom=1', 'zoom=0'),
         description: v.description?.slice(0, 2000),
         ...sagaHints(v.title),
@@ -83,11 +89,12 @@ const openLibrary: Connector = {
       ...sagaHints(b.title),
     }, b.url)]
   },
-  async search(query) {
+  async search(query, ctx) {
     const params = new URLSearchParams({
       q: query, limit: '5',
-      fields: 'key,title,author_name,first_publish_year,publisher,isbn,cover_i,subject',
+      fields: 'key,title,author_name,first_publish_year,publisher,isbn,cover_i,subject,language',
     })
+    if (ctx.language && MARC[ctx.language]) params.set('language', MARC[ctx.language])
     const data = await fetchJson(`https://openlibrary.org/search.json?${params}`)
     return take(data?.docs, 5).map((d: any) => {
       const subjects = take(d.subject, 8).join(', ')
@@ -99,6 +106,8 @@ const openLibrary: Connector = {
         genre: subjects,
         format: bookFormat(subjects),
         isbn: d.isbn?.find((i: string) => i.length === 13),
+        // Open Library lists every edition's language: only a single one says which this is
+        language: d.language?.length === 1 ? ISO[d.language[0]] : undefined,
         cover: d.cover_i ? `https://covers.openlibrary.org/b/id/${d.cover_i}-L.jpg` : undefined,
         ...sagaHints(d.title),
       }, `https://openlibrary.org${d.key}`)
@@ -117,6 +126,7 @@ function isbndbBook(this: Connector, b: any, code?: string) {
     genre: subjects,
     format: bookFormat(`${subjects} ${b.binding || ''}`),
     isbn: b.isbn13,
+    language: b.language,
     barcode: code,
     cover: b.image_original || b.image,
     description: b.synopsis?.slice(0, 2000),
@@ -149,6 +159,7 @@ const comicVine: Connector = {
   media: ['book'],
   keys: [{ id: 'comicVine', label: 'API key' }],
   docs: 'https://comicvine.gamespot.com/api/',
+  languages: ['en'],
   async search(query, ctx) {
     const params = new URLSearchParams({
       api_key: ctx.keys.comicVine, format: 'json', resources: 'volume', query, limit: '5',
@@ -177,13 +188,15 @@ const mangaDex: Connector = {
   docs: 'https://api.mangadex.org/docs/',
   async search(query, ctx: Ctx) {
     const params = new URLSearchParams({ title: query, limit: '4' })
+    if (ctx.language) params.append('availableTranslatedLanguage[]', ctx.language)
     params.append('includes[]', 'cover_art')
     params.append('includes[]', 'author')
     const data = await fetchJson(`https://api.mangadex.org/manga?${params}`)
     return take(data?.data, 4).map((m: any) => {
       const a = m.attributes || {}
-      const title = a.title?.[ctx.locale] || a.title?.en || Object.values(a.title || {})[0]
-      const alt = (a.altTitles || []).find((t: any) => t[ctx.locale])?.[ctx.locale]
+      const lang = ctx.language || ctx.locale
+      const title = a.title?.[lang] || a.title?.en || Object.values(a.title || {})[0]
+      const alt = (a.altTitles || []).find((t: any) => t[lang])?.[lang]
       const coverFile = m.relationships?.find((r: any) => r.type === 'cover_art')?.attributes?.fileName
       const tags = (a.tags || []).map((t: any) => t.attributes?.name?.en).filter(Boolean)
       return candidate(this, 'book', {

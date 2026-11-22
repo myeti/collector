@@ -169,7 +169,7 @@ const itunes: Connector = {
   },
   async search(query, ctx) {
     const entity = ctx.type === 'movie' ? 'movie' : 'album'
-    const country = ctx.locale === 'fr' ? 'FR' : 'US'
+    const country = (ctx.language || ctx.locale) === 'fr' ? 'FR' : 'US'
     const data = await fetchJson(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=${entity}&limit=5&country=${country}`)
     return take(data?.results, 5).map((r: any) => itunesItem.call(this, r, ctx.type))
   },

@@ -62,7 +62,7 @@ export default {
     title: 'Titre', author: 'Auteur', cover: 'Couverture', genre: 'Genre',
     category: 'Catégorie', release_date: 'Date de sortie', condition: 'État', barcode: 'Code-barres',
     consumed: 'Statut', description: 'Résumé', comment: 'Commentaire', editor: 'Éditeur', isbn: 'ISBN', saga: 'Saga', volume: 'Tome',
-    format: 'Format',
+    format: 'Format', language: 'Langue',
     // Même champ, un nom différent selon le type
     authorBy: { book: 'Auteur', music: 'Artiste', movie: 'Réalisateur', videogame: 'Studio', custom: 'Fabricant' },
     editorBy: { book: 'Éditeur', music: 'Label', movie: 'Studio', videogame: 'Éditeur', custom: 'Marque' },
@@ -286,6 +286,7 @@ export default {
     allActive: 'Toutes les sources sont déjà actives ✨',
     keySet: 'Clé définie',
     removeSource: 'Retirer',
+    sourceLanguages: 'Résultats en {list}',
   },
   pwa: {
     installTitle: 'Installer Collector',

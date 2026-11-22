@@ -86,9 +86,13 @@ export async function findItem(query: { code?: string; text?: string }, ctx: Ctx
   return result || { type: ctx.type, candidates: [], sources: [], errors: [] }
 }
 
+/** A source can answer in the language asked (no language asked: every source). */
+const speaks = (c: Connector, language?: string) => !language || !c.languages || c.languages.includes(language)
+
 export async function searchAll(query: string, ctx: Ctx): Promise<LookupResult> {
   const result: LookupResult = { type: ctx.type, query, candidates: [], sources: [], errors: [] }
-  const searchers = forType(ctx.type, ctx.keys).filter((x) => x.search)
+  // A text search narrowed to a language only asks the sources that have it (barcodes are exact: every source)
+  const searchers = forType(ctx.type, ctx.keys).filter((x) => x.search && speaks(x, ctx.language))
   result.candidates = await run(searchers, (x) => x.search!(query, ctx), result)
   return result
 }
@@ -102,6 +106,7 @@ export function describeConnectors(keys: Record<string, string>) {
     docs: c.docs,
     keysOptional: !!c.keysOptional,
     capabilities: [c.barcode && 'barcode', c.search && 'search'].filter(Boolean),
+    languages: c.languages || null, // null: any language
     keys: c.keys.map((k) => ({ id: k.id, label: k.label })),
     enabled: enabled(c, keys),
   }))

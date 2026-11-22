@@ -71,6 +71,7 @@ export const Item: AnyModel = sequelize.define('item', {
   format: { type: DataTypes.STRING(32) }, // book kind, music / movie medium, game platform
   saga: { type: DataTypes.STRING(255) },
   volume: { type: DataTypes.STRING(32) },
+  language: { type: DataTypes.STRING(8) }, // ISO 639-1 (LANGUAGES), optional
   release_date: { type: DataTypes.STRING(10) }, // 'YYYY', 'YYYY-MM' or 'YYYY-MM-DD'
   condition: { type: DataTypes.ENUM(...CONDITIONS) },
   barcode: { type: DataTypes.STRING(32) },

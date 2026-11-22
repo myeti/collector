@@ -5,6 +5,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- A language for every item (optional): French or English to begin with, more can be added to one list (`LANGUAGES` in shared/media.js), their names coming from the browser in the interface language.
+  - New items start in the user's language; existing items are left without one.
+  - Shown on the item page, filterable in the shelf's filter box, read by the AI from photos, filled by sources that state it (Google Books, Open Library, ISBNdb).
+- Online search: a quick language choice (all by default) asks only the sources covering that language, passes it to those that can narrow their results (Google Books, Open Library, MangaDex, TMDB, iTunes), and gives the picked items that language.
+- Sources declare the languages they cover (Settings → Sources shows the English-only ones).
+
 ## [0.2.0] - 2026-11-22
 
 ### Changed
