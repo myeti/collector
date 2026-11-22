@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-22
+
 ### Added
 - A language for every item (optional): French or English to begin with, more can be added to one list (`LANGUAGES` in shared/media.js), their names coming from the browser in the interface language.
   - New items start in the user's language; existing items are left without one.
