@@ -5,6 +5,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- Books scanner: the ISBN printed as text is read too (OCR, for books whose barcode is not their ISBN). An ISBN wins: a barcode that is not one waits 2 seconds for the ISBN text, then is used; the item keeps both. The scanner says which one it used.
+  - Tesseract (tesseract.js) in a background worker, with model-free image cleanup (adaptive threshold, straightening up to ±12°); only ISBNs with a valid check digit, read twice in a row, are accepted.
+  - The engine and English model (about 7 MB) are served by Collector itself under `/ocr/<version>/`, downloaded on first use of the books scanner only, then cached for offline use; other scanners never load them.
+- Typing a code: hyphens and spaces accepted, ISBN-10s converted to ISBN-13, a mistyped ISBN (wrong check digit) is flagged and not looked up.
+
+### Changed
+- Content-Security-Policy: `script-src` allows `'wasm-unsafe-eval'` (compiling WebAssembly only, for the OCR engine).
+
 ## [0.2.1] - 2026-11-22
 
 ### Added

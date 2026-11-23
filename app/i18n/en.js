@@ -122,6 +122,12 @@ export default {
   scan: {
     title: 'Scan a barcode',
     hint: 'Center the barcode in the frame',
+    hintText: 'Barcode or ISBN text in the frame',
+    textLoading: 'Getting the ISBN text reader ready…',
+    notIsbn: 'This barcode isn’t an ISBN: looking for the ISBN text…',
+    fromText: 'ISBN read from the text',
+    fromBarcode: 'Barcode',
+    invalidIsbn: 'Invalid ISBN: check the digits',
     manual: 'Type the code',
     manualPlaceholder: 'EAN / ISBN / UPC',
     lookup: 'Look up',

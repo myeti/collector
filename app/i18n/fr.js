@@ -122,6 +122,12 @@ export default {
   scan: {
     title: 'Scanner un code-barres',
     hint: 'Centrez le code-barres dans le cadre',
+    hintText: 'Code-barres ou texte ISBN dans le cadre',
+    textLoading: 'Préparation de la lecture du texte ISBN…',
+    notIsbn: 'Ce code-barres n’est pas un ISBN : recherche du texte ISBN…',
+    fromText: 'ISBN lu dans le texte',
+    fromBarcode: 'Code-barres',
+    invalidIsbn: 'ISBN invalide : vérifiez les chiffres',
     manual: 'Saisir le code',
     manualPlaceholder: 'EAN / ISBN / UPC',
     lookup: 'Rechercher',

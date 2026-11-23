@@ -15,4 +15,5 @@ export function fieldsFor(type: string): string[]
 export function defaultFormat(type: string): string | null
 export function allowedValue(type: string, field: 'category' | 'format' | 'language', value: any): boolean
 export function isIsbn(code: string): boolean
+export function normalizeIsbn(raw: any): string | null
 export function matchGenre(type: string, raw: string): string | null

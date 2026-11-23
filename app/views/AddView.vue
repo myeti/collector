@@ -10,7 +10,8 @@
     </div>
 
     <!-- 1. Barcode -->
-    <BarcodeScanner v-if="mode === 'scan'" @detected="onBarcode" />
+    <!-- Books: the ISBN printed as text is read too (an ISBN wins over a barcode that is not one) -->
+    <BarcodeScanner v-if="mode === 'scan'" :isbn-text="type === 'book'" @detected="onBarcode" />
 
     <!-- 2. Photo of a cover or a shelf (AI) -->
     <template v-else-if="mode === 'photo'">
@@ -86,7 +87,7 @@ import { toastError } from '../lib/toast.js'
 import { norm, languageName } from '../lib/format.js'
 import { queryText } from '../lib/lookup.js'
 import { startSession, reviewPath } from '../lib/addSession.js'
-import { MEDIA, LANGUAGES, isIsbn } from '../../shared/media.js'
+import { MEDIA, LANGUAGES, normalizeIsbn } from '../../shared/media.js'
 
 export default {
   name: 'AddView',
@@ -139,9 +140,10 @@ export default {
     },
 
     // --- Barcode: a queue of one, identifier mode
-    onBarcode(code) {
-      const preset = { barcode: code }
-      if (isIsbn(code)) preset.isbn = code
+    onBarcode(code, info = {}) {
+      // ISBN read from the text: the barcode seen (not an ISBN) is kept as the barcode
+      const preset = info.source === 'text' ? { isbn: code, ...(info.barcode ? { barcode: info.barcode } : {}) } : { barcode: code }
+      if (info.source !== 'text' && normalizeIsbn(code)) preset.isbn = normalizeIsbn(code)
       this.review([{ query: { code }, preset }])
     },
 

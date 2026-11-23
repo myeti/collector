@@ -24,7 +24,8 @@ app.set('trust proxy', 'loopback, linklocal, uniquelocal')
 app.disable('x-powered-by')
 // Security headers. The CSP only in production: the Vite dev server injects inline scripts and websockets.
 const CSP = [
-  "default-src 'self'", "script-src 'self'", "style-src 'self' 'unsafe-inline'",
+  // 'wasm-unsafe-eval': compiling WebAssembly only (the ISBN text reader's OCR engine), not eval of scripts
+  "default-src 'self'", "script-src 'self' 'wasm-unsafe-eval'", "style-src 'self' 'unsafe-inline'",
   // Covers proposed by metadata sources are shown straight from their https URLs until saved.
   "img-src 'self' data: blob: https:", "font-src 'self' data:", "connect-src 'self'", "worker-src 'self'",
   "manifest-src 'self'", "object-src 'none'", "base-uri 'self'", "form-action 'self'", "frame-ancestors 'none'",

@@ -2,7 +2,7 @@
   <div class="scanner">
     <div class="viewport" :class="{ hit: !!detected, off: error }">
       <video ref="video" playsinline muted autoplay></video>
-      <div v-if="!error" class="frame" aria-hidden="true">
+      <div v-if="!error" ref="frame" class="frame" aria-hidden="true">
         <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
         <span class="laser"></span>
       </div>
@@ -14,9 +14,10 @@
       <div v-if="detected" class="detected">
         <vue-feather type="check-circle" size="28" />
         <span class="mono">{{ detected }}</span>
+        <span v-if="isbnText && detectedSource !== 'manual'" class="source">{{ detectedSource === 'text' ? $t('scan.fromText') : $t('scan.fromBarcode') }}</span>
       </div>
       <div v-if="!error && !detected" class="hud">
-        <span>{{ $t('scan.hint') }}</span>
+        <span :class="{ waiting: pending }">{{ hudText }}</span>
         <button v-if="torch" class="icon-btn sm" :class="{ active: torchOn }" :aria-label="$t('scan.torch')" @click="toggleTorch">
           <vue-feather type="zap" size="15" />
         </button>
@@ -26,15 +27,21 @@
     <form class="manual" @submit.prevent="submitManual">
       <div class="input-wrap grow">
         <span class="lead"><vue-feather type="hash" size="16" /></span>
-        <input v-model="manual" class="input" inputmode="numeric" :placeholder="$t('scan.manualPlaceholder')" :aria-label="$t('scan.manual')" />
+        <input v-model="manual" class="input" :class="{ invalid: manualIsbnInvalid }" inputmode="numeric" :placeholder="$t('scan.manualPlaceholder')" :aria-label="$t('scan.manual')" />
       </div>
-      <button class="btn" :disabled="manual.replace(/\D/g, '').length < 8">{{ $t('scan.lookup') }}</button>
+      <button class="btn" :disabled="manual.replace(/\D/g, '').length < 8 || manualIsbnInvalid">{{ $t('scan.lookup') }}</button>
     </form>
+    <p v-if="manualIsbnInvalid" class="manual-hint">{{ $t('scan.invalidIsbn') }}</p>
   </div>
 </template>
 
 <script>
 import { vibrate } from '../lib/sparkle.js'
+import { normalizeIsbn } from '../../shared/media.js'
+import { loadIsbnReader, releaseIsbnReader, readIsbns, prepareFrame } from '../lib/isbnReader.js'
+
+/** Books: how long a barcode that is not an ISBN waits for the ISBN printed as text (which wins if read meanwhile) */
+const ISBN_GRACE = 2000
 
 const FORMATS = ['ean_13', 'ean_8', 'upc_a', 'upc_e']
 
@@ -49,10 +56,35 @@ export function validGtin(code) {
 
 export default {
   name: 'BarcodeScanner',
+  props: {
+    /** Books: also read the ISBN printed as text (OCR), for books whose barcode is not their ISBN */
+    isbnText: Boolean,
+  },
+  // detected(code, { source: 'barcode' | 'text' | 'manual', barcode? }): barcode = the non-ISBN barcode seen, if any
   emits: ['detected'],
-  data: () => ({ error: false, detected: null, manual: '', torch: false, torchOn: false }),
+  data: () => ({
+    error: false, detected: null, detectedSource: null, manual: '', torch: false, torchOn: false,
+    textState: 'off', // ISBN text reader: off · loading · on · failed
+    pending: null, // a non-ISBN barcode waiting for the ISBN text
+  }),
+  computed: {
+    hudText() {
+      if (this.pending) return this.$t('scan.notIsbn')
+      if (this.isbnText && this.textState === 'loading') return this.$t('scan.textLoading')
+      if (this.isbnText && this.textState === 'on') return this.$t('scan.hintText')
+      return this.$t('scan.hint')
+    },
+    /** Looks like an ISBN (10 digits, or 13 starting 978/979) but its check digit is wrong: a typo */
+    manualIsbnInvalid() {
+      const c = this.manual.toUpperCase().replace(/[^0-9X]/g, '')
+      return (c.length === 10 || (c.length === 13 && /^97[89]/.test(c))) && !normalizeIsbn(c)
+    },
+  },
   mounted() { this.start() },
-  beforeUnmount() { this.stop() },
+  beforeUnmount() {
+    this.stop()
+    if (this.isbnText) releaseIsbnReader()
+  },
   methods: {
     async start() {
       this.detected = null
@@ -76,6 +108,7 @@ export default {
       const caps = this.track.getCapabilities?.() || {}
       this.torch = !!caps.torch
       if (caps.focusMode?.includes('continuous')) this.track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {})
+      if (this.isbnText) this.startText()
 
       if ('BarcodeDetector' in window) {
         const supported = await window.BarcodeDetector.getSupportedFormats().catch(() => [])
@@ -121,18 +154,93 @@ export default {
       if (this.detected || !validGtin(code)) return
       // Two identical consecutive reads: cheap protection against misreads.
       if (this.last !== code) { this.last = code; return }
+      // Books: an ISBN wins. A barcode that is not one waits a moment for the ISBN printed as text.
+      if (this.isbnText && this.textState !== 'failed' && !normalizeIsbn(code)) {
+        if (!this.pending) {
+          this.pending = code
+          this.pendingTimer = setTimeout(() => this.accept(this.pending, 'barcode'), ISBN_GRACE)
+        }
+        return
+      }
+      this.accept(code, 'barcode')
+    },
+
+    accept(code, source) {
+      if (this.detected) return
+      clearTimeout(this.pendingTimer)
+      const info = { source, barcode: source === 'text' && this.pending ? this.pending : undefined }
       this.detected = code
+      this.detectedSource = source
       vibrate([20, 30, 40])
       this.stop(false)
-      setTimeout(() => this.$emit('detected', code), 450)
+      setTimeout(() => this.$emit('detected', code, info), 450)
+    },
+
+    // ---- ISBN text reader (books)
+    startText() {
+      this.textState = 'loading'
+      loadIsbnReader()
+        .then((worker) => {
+          if (!this.stream || this.detected) return
+          this.textState = 'on'
+          this.readText(worker)
+        })
+        .catch((e) => {
+          console.warn('[scan] ISBN text reader unavailable', e)
+          this.textState = 'failed'
+          if (this.pending) this.accept(this.pending, 'barcode')
+        })
+    },
+
+    /** One OCR read at a time on the framed area, while the scanner is open and visible; two equal reads accept it. */
+    async readText(worker) {
+      while (this.stream && !this.detected) {
+        try {
+          const canvas = !document.hidden && this.grabFrame()
+          if (canvas) {
+            const [isbn] = await readIsbns(worker, canvas)
+            if (!this.stream || this.detected) return
+            if (isbn && this.lastText === isbn) return this.accept(isbn, 'text')
+            this.lastText = isbn || null
+          }
+        } catch (e) {
+          // One bad frame must not stop the reading
+          console.warn('[scan] ISBN text read failed', e)
+        }
+        await new Promise((r) => setTimeout(r, 300))
+      }
+    },
+
+    /** The part of the camera frame inside the viewfinder corners, cleaned up for OCR (see prepareFrame). */
+    grabFrame() {
+      const video = this.$refs.video
+      const frame = this.$refs.frame
+      if (!video?.videoWidth || !frame) return null
+      const v = video.getBoundingClientRect()
+      const f = frame.getBoundingClientRect()
+      if (!v.width || !v.height || !f.width || !f.height) return null // not laid out yet
+      // object-fit: cover: the element shows the middle of the frame, scaled
+      const scale = Math.max(v.width / video.videoWidth, v.height / video.videoHeight)
+      const ox = (video.videoWidth * scale - v.width) / 2
+      const oy = (video.videoHeight * scale - v.height) / 2
+      const sx = Math.max(0, (f.left - v.left + ox) / scale)
+      const sy = Math.max(0, (f.top - v.top + oy) / scale)
+      const sw = Math.min(video.videoWidth - sx, f.width / scale)
+      const sh = Math.min(video.videoHeight - sy, f.height / scale)
+      if (sw < 20 || sh < 20) return null
+      this.canvas ||= document.createElement('canvas')
+      return prepareFrame(video, sx, sy, sw, sh, this.canvas)
     },
 
     submitManual() {
-      const code = this.manual.replace(/[^0-9X]/gi, '')
-      if (code.length < 8) return
+      // A typed ISBN (hyphens, X, 10 digits…) is looked up as its ISBN-13; anything else as the digits typed
+      const isbn = normalizeIsbn(this.manual)
+      const code = isbn || this.manual.replace(/\D/g, '')
+      if (code.length < 8 || this.manualIsbnInvalid) return
       this.detected = code
+      this.detectedSource = 'manual'
       this.stop(false)
-      this.$emit('detected', code)
+      this.$emit('detected', code, { source: 'manual' })
     },
 
     async toggleTorch() {
@@ -142,6 +250,7 @@ export default {
 
     stop() {
       clearTimeout(this.timer)
+      clearTimeout(this.pendingTimer)
       this.controls?.stop()
       this.controls = null
       this.stream?.getTracks().forEach((t) => t.stop())
@@ -190,4 +299,7 @@ video { width: 100%; height: 100%; object-fit: cover; }
 .nocam { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 24px; text-align: center; color: #fff; }
 .nocam .muted { color: #a0a0a8; font-size: 12.5px; max-width: 300px; }
 .manual { display: flex; gap: 8px; }
+.manual-hint { margin: -4px 0 0; font-size: 12px; color: var(--danger); }
+.detected .source { font-size: 12px; font-weight: 600; opacity: 0.85; }
+.hud .waiting { color: #ffe08a; }
 </style>

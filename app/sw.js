@@ -5,6 +5,7 @@ const PRECACHE = __PRECACHE__
 const SHELL = `collector-shell-${BUILD}` // app shell of this build (index, scripts, styles, icons, fonts)
 const COVERS = 'collector-covers' // cover images, cached as viewed
 const API = 'collector-api' // last known API reads, for offline browsing (cleared on logout)
+const OCR = 'collector-ocr' // the ISBN text reader's engine and model (versioned paths), kept across builds
 const MAX_COVERS = 800
 
 self.addEventListener('install', (event) => {
@@ -40,6 +41,14 @@ self.addEventListener('fetch', (event) => {
   // Hashed build files never change.
   if (url.pathname.startsWith('/assets/')) {
     event.respondWith(cacheFirst(request, SHELL))
+    return
+  }
+  // OCR engine and model: large, versioned paths, so cache first (only the current version is kept).
+  if (url.pathname.startsWith('/ocr/')) {
+    const version = url.pathname.split('/')[2]
+    event.respondWith(cacheFirst(request, OCR, async (cache) => {
+      for (const key of await cache.keys()) if (new URL(key.url).pathname.split('/')[2] !== version) await cache.delete(key)
+    }))
     return
   }
   // Covers have unique names: cache first.

@@ -159,6 +159,28 @@ export function allowedValue(type, field, value) {
   return !value || !list?.length || list.includes(value)
 }
 
+/** EAN-13 check digit of the first 12 digits */
+function ean13Check(twelve) {
+  const sum = twelve.split('').reduce((s, d, i) => s + Number(d) * (i % 2 ? 3 : 1), 0)
+  return String((10 - (sum % 10)) % 10)
+}
+
+/**
+ * A printed or typed ISBN ("978-2-07-061275-8", "2-07-061275-X", spaces…) -> its ISBN-13, or null when it is not
+ * a valid ISBN (wrong length, prefix or check digit). ISBN-10s are converted (978 + 9 digits + new check digit).
+ */
+export function normalizeIsbn(raw) {
+  const c = String(raw || '').toUpperCase().replace(/[^0-9X]/g, '')
+  if (/^97[89]\d{10}$/.test(c)) return ean13Check(c.slice(0, 12)) === c[12] ? c : null
+  if (/^\d{9}[\dX]$/.test(c)) {
+    const sum = c.split('').reduce((s, ch, i) => s + (ch === 'X' ? 10 : Number(ch)) * (10 - i), 0)
+    if (sum % 11) return null
+    const base = `978${c.slice(0, 9)}`
+    return base + ean13Check(base)
+  }
+  return null
+}
+
 export function isIsbn(code) {
   const c = String(code || '').replace(/[^0-9X]/gi, '')
   return (c.length === 13 && /^97[89]/.test(c)) || c.length === 10
