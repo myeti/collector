@@ -32,7 +32,7 @@ export const config = {
   publicUrl: (env.PUBLIC_URL || 'http://localhost:5173').replace(/\/$/, ''),
   jwtSecret: env.JWT_SECRET || 'dev-secret-change-me',
   // Not mandatory: where cover images are stored.
-  uploadDir: path.resolve(env.UPLOAD_DIR || './uploads'),
+  uploadDir: path.resolve(env.DATA_DIR || './uploads'),
   sessionDays: 60,
   // Installed (PWA) sessions: signing in again on a phone app is tedious
   installedSessionDays: 365,

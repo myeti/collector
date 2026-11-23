@@ -54,7 +54,7 @@ Required environment variables (the server refuses to start in production if any
 | `DB_HOST` `DB_PORT` `DB_NAME` `DB_USER` `DB_PASSWORD` | Postgres |
 | `SMTP_HOST` `SMTP_PORT` `SMTP_USER` `SMTP_PASSWORD` `SMTP_FROM` | Magic-link emails (port 465 = implicit TLS) |
 
-Optional: `UPLOAD_DIR` (default `./uploads`) for cover images.
+Optional: `DATA_DIR` (default `./uploads`) for cover images.
 
 The schema is created on startup from the models (`sequelize.sync`). There are no migrations yet (pre-release): after changing a model in development, run `npm run db:sync -- --alter`, or start from an empty database (`docker compose down -v`).
 The `unaccent` extension is enabled when possible so search ignores accents ("asterix" finds "Astérix").

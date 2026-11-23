@@ -21,7 +21,7 @@ export function ownsUpload(publicPath: string | null | undefined, ownerId: strin
   return !!m && m[2] === tag(ownerId, m[1])
 }
 
-/** Normalises any image buffer to a webp in UPLOAD_DIR. Returns its public path. */
+/** Normalises any image buffer to a webp in DATA_DIR. Returns its public path. */
 export async function storeImage(buffer: Buffer, ownerId: string): Promise<string> {
   await fs.mkdir(config.uploadDir, { recursive: true })
   const id = crypto.randomUUID()

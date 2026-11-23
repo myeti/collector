@@ -15,6 +15,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Changed
 - Content-Security-Policy: `script-src` allows `'wasm-unsafe-eval'` (compiling WebAssembly only, for the OCR engine).
+- The cover images folder is set with `DATA_DIR` (was `UPLOAD_DIR`, default still `./uploads`). **Upgrading:** rename the variable where it is set, otherwise covers are looked for in `./uploads`.
 
 ## [0.2.1] - 2026-11-22
 
