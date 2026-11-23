@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-11-23
+
 ### Added
 - Open source under the MIT license.
 - "Made by Magalon" under the version in the settings.
