@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-23
+
 ### Added
 - Export your collection (Settings → Import & export → Export): one `.zip` with every item you own and, optionally, its cover. Items of other family members are not included.
 - Import a Collector export ("Collector" among the importers): every collection at once, with the same preview as the other imports (items already owned left unticked). Items come with their covers, read status, notes and custom fields; covers are copied in the background with their progress shown.

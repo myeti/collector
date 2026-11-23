@@ -1,6 +1,6 @@
 {
     "name": "collector",
-    "version": "0.3.1",
+    "version": "0.4.0",
     "author": "Magalon",
     "description": "Self-hosted manager for your physical collection: books, records, films and games.",
     "homepage": "https://github.com/myeti/collector#readme",
