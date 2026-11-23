@@ -56,7 +56,11 @@ Required environment variables (the server refuses to start in production if any
 
 Optional: `DATA_DIR` (default `./uploads`) for cover images.
 
-The schema is created on startup from the models (`sequelize.sync`). There are no migrations yet (pre-release): after changing a model in development, run `npm run db:sync -- --alter`, or start from an empty database (`docker compose down -v`).
+The database is brought up to date on every start, so deploying a new version needs no extra step:
+1. missing tables are created from the models (`sequelize.sync`) and new columns are added (additive only, nothing is dropped);
+2. pending migrations (`server/migrations/`, for data that moves between fields) are applied once each, in order, each in its own transaction, and recorded in the `migrations` table.
+
+`npm run db:sync` does the same without starting the server. In development, `npm run db:sync -- --alter` then makes the tables match the models exactly, dropping the columns they no longer have; or start from an empty database (`docker compose down -v`). A shipped migration is never edited: add a new one to `server/migrations/index.ts`.
 The `unaccent` extension is enabled when possible so search ignores accents ("asterix" finds "Astérix").
 
 ## Progressive Web App
@@ -121,6 +125,8 @@ server/
   routes/              auth, items, lookup, uploads, family, settings
   connectors/          one file per media family + aggregator
   lib/                 jwt, crypto, mailer, images (sharp), llm
+  importers/           CSV imports (Goodreads, StoryGraph, Discogs, Letterboxd, RAWG…)
+  migrations/          data changes between releases, applied on start
   scripts/             create-user, db-sync
 app/
   main.js App.vue      router, shell (sidebar / bottom nav)
