@@ -63,12 +63,12 @@ export default defineConfig(({ mode }) => {
   const env = { ...loadEnv(mode, process.cwd(), ''), ...process.env }
   const api = `http://localhost:${env.PORT || 3000}`
 
-  const { version } = JSON.parse(readFileSync('package.json', 'utf8'))
+  const { version, author } = JSON.parse(readFileSync('package.json', 'utf8'))
 
   return {
     root: 'app',
-    // Shown on the login screen and in settings (npm run bump updates it).
-    define: { __APP_VERSION__: JSON.stringify(version), __OCR_VERSION__: JSON.stringify(OCR_VERSION) },
+    // Shown on the login screen and in settings (npm run bump updates the version).
+    define: { __APP_VERSION__: JSON.stringify(version), __APP_AUTHOR__: JSON.stringify(author || ''), __OCR_VERSION__: JSON.stringify(OCR_VERSION) },
     publicDir: 'public',
     // HTTPS for phones: see server/scripts/dev-https.ts (npm run dev:https).
     plugins: [vue(), serviceWorker(), ocrAssets()],

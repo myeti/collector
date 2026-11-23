@@ -286,6 +286,7 @@ export default {
     saved: 'Réglages enregistrés',
     keyPlaceholder: 'Collez votre clé',
     logoutEverywhere: 'Se déconnecter de tous les appareils',
+    madeBy: 'Créé par {author}',
     logoutEverywhereConfirm: 'Déconnecter tous les appareils qui utilisent ce compte, y compris celui-ci ?',
     addSource: 'Ajouter une source',
     addSourceText: 'Choisissez un service puis collez sa clé d’API. Il devient actif dès que la clé est enregistrée.',

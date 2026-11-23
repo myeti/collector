@@ -1,137 +1,314 @@
-# Collector ✨
+<p align="center">
+  <img src="docs/screenshots/hero.webp" alt="Collector: a book shelf on desktop and an item page on a phone">
+</p>
 
-Personal manager for physical collections: books (novels, comics, mangas, magazines), music (vinyls, CDs, tapes), movies (DVD, Blu-ray), games and custom items. Scan a barcode, snap a cover or type it in; cherry-pick the best metadata from every source; share shelves with your family.
+<p align="center">
+  <b>Your books, records, films and games, on one shelf you host yourself.</b><br>
+  Scan a barcode, pick the best metadata from a dozen sources, share the shelves with your family.<br>
+  Installable on phones, browsable offline, in English and French.
+</p>
 
-- **Backend**: Node.js (≥ 23.6, runs TypeScript natively), Express 5, Sequelize, Postgres
-- **Frontend**: Vue 3 (Options API), vue-router, vue-i18n (EN/FR), vue-feather, Vite
+<p align="center">
+  <a href="#-self-hosting">Self-hosting</a> ·
+  <a href="#-features">Features</a> ·
+  <a href="#-metadata-sources">Sources</a> ·
+  <a href="#-updating">Updating</a> ·
+  <a href="CHANGELOG.md">Changelog</a> ·
+  <a href="CONTRIBUTING.md">Contributing</a>
+</p>
 
-## Quick start (dev)
+---
 
-```bash
-docker compose up -d          # Postgres :5432 + Mailpit (SMTP :1025, UI http://localhost:8025)
-cp .env.example .env
-npm install
-npm run create:user -- you@example.com --name "You" --locale fr
-npm run dev                   # API :3000 + app http://localhost:5173
-```
+## ✨ Features
 
-Ask for a magic link on the login page, then open it from Mailpit (http://localhost:8025).
+### Your shelves, beautifully
 
-`npm run dev` is reachable from other devices of your network: the console prints the LAN addresses (e.g. `http://192.168.1.30:5173`). In dev, magic links point to the address the login page was opened from, so they work on the phone too.
+Books (novels, comics, manga, magazines…), music (vinyl, CD, tape), movies (DVD, Blu-ray, 4K) and video games, each on its own shelf with its own colour. Grid or list, accent-insensitive search, filters (format, genre, language, read / not read, physical or digital copy, owner) and a quick bar to jump between formats.
 
-Phones only give camera access (barcode scanning) over HTTPS: use `npm run dev:https` and open `https://<your-ip>:5173` (self-signed certificate: accept the warning once per device). It serves HTTP/1.1 on purpose: Vite's built-in HTTPS server uses HTTP/2, which Chrome on Android rejects with a self-signed certificate (`ERR_TOO_MANY_RETRIES`).
+<p align="center">
+  <img src="docs/screenshots/books-desktop.webp" width="72%" alt="The books shelf on desktop">
+  <img src="docs/screenshots/books-mobile.webp" width="23%" alt="The books shelf on a phone">
+</p>
 
-## Versioning
+<details>
+<summary><b>More shelves: music, movies, games, list view</b></summary>
+<br>
+<p align="center">
+  <img src="docs/screenshots/music-desktop.webp" width="72%" alt="The music shelf on desktop">
+  <img src="docs/screenshots/music-mobile.webp" width="23%" alt="The music shelf on a phone">
+</p>
+<p align="center">
+  <img src="docs/screenshots/movies-desktop.webp" width="72%" alt="The movies shelf on desktop">
+  <img src="docs/screenshots/movies-mobile.webp" width="23%" alt="The movies shelf on a phone">
+</p>
+<p align="center">
+  <img src="docs/screenshots/games-desktop.webp" width="72%" alt="The games shelf on desktop">
+  <img src="docs/screenshots/games-mobile.webp" width="23%" alt="The games shelf on a phone">
+</p>
+<p align="center">
+  <img src="docs/screenshots/list-desktop.webp" width="72%" alt="The list view on desktop">
+  <img src="docs/screenshots/list-mobile.webp" width="23%" alt="The list view on a phone">
+</p>
+</details>
 
-```bash
-npm run bump                # minor: 0.1.0 → 0.2.0 (default)
-npm run bump -- --patch     # 0.1.0 → 0.1.1
-npm run bump -- --major     # 0.1.0 → 1.0.0
-```
+### Every item, in detail
 
-Write release notes under `## [Unreleased]` in `CHANGELOG.md` as you go. The bump:
+Author, publisher or label, saga and volume, format, genre, language, release date, condition, read / listened / watched / played, a synopsis from the sources and your own notes. Mark something as a digital copy when you own it but not on the shelf.
 
-1. updates the version in `package.json`, `package-lock.json` and the web manifest;
-2. moves the "Unreleased" notes under `## [x.y.z] - <date>` and starts a fresh "Unreleased";
-3. commits exactly those files as "Release vx.y.z" (add `--no-commit` to review first).
+<p align="center">
+  <img src="docs/screenshots/item-desktop.webp" width="72%" alt="An item page on desktop">
+  <img src="docs/screenshots/item-mobile.webp" width="23%" alt="An item page on a phone">
+</p>
 
-The version is built into the app (login screen, settings): rebuild after bumping.
+### Adding things, the fast way
 
-## Production
+Four ways in, one review at the end:
 
-```bash
-npm run build                 # builds the app into dist/
-NODE_ENV=production npm start # serves the app on / and the API on /api
-```
+- **📷 Scan a barcode** with the phone's camera (or type it). For books, the ISBN **printed as text** is read too, on the device: handy when the barcode on the back is a shop's, not the ISBN.
+- **🔎 Search online** by title, optionally in one language.
+- **🤖 Snap a photo** of a cover, or of a whole shelf, and let an AI list what it sees (optional, bring your own provider).
+- **✍️ Type it in**, with the sources one click away to complete it.
 
-Required environment variables (the server refuses to start in production if any is missing):
+Every candidate then goes through the same **cherry-picker**: all the sources answer side by side, take a whole result or pick field by field. Collector warns you when you **already own it** (same barcode or ISBN) or **maybe own it** (same title and author, another edition?).
 
-| Variable | Purpose |
+<p align="center">
+  <img src="docs/screenshots/scan-desktop.webp" width="72%" alt="The barcode scanner on desktop">
+  <img src="docs/screenshots/scan-mobile.webp" width="23%" alt="The barcode scanner on a phone">
+</p>
+<p align="center">
+  <img src="docs/screenshots/add-desktop.webp" width="72%" alt="Choosing how to add an item, on desktop">
+  <img src="docs/screenshots/add-mobile.webp" width="23%" alt="Choosing how to add an item, on a phone">
+</p>
+
+### Bring your existing collection
+
+Import the CSV export of **Goodreads**, **The StoryGraph**, **Discogs**, **Letterboxd** or **RAWG**. You see everything before it is saved; duplicates are left unticked, wishlists and to-read shelves are left out. Then let Collector **find the missing covers** in the background.
+
+<p align="center">
+  <img src="docs/screenshots/import-desktop.webp" width="72%" alt="The import page on desktop">
+  <img src="docs/screenshots/import-mobile.webp" width="23%" alt="The import page on a phone">
+</p>
+
+### For the whole family
+
+Start a family and invite the other accounts of your server. Everyone sees every shelf, edits only their own items, and gets a colour and an initial on what they own. Your shelves open on your own items; switch to everyone in the filters.
+
+<p align="center">
+  <img src="docs/screenshots/filters-desktop.webp" width="72%" alt="The filters on desktop">
+  <img src="docs/screenshots/filters-mobile.webp" width="23%" alt="The filters on a phone">
+</p>
+
+### An app on your phone
+
+Install it from the browser (Android and desktop: install prompt; iPhone: Share → Add to Home Screen). It opens like an app, keeps you signed in for a year, browses your collection **offline**, and long-pressing its icon goes straight to the scanner. Dark and light themes, English and French.
+
+### Private by design
+
+Your server, your database, your covers. No password to leak: you sign in with a link or a 6-digit code sent by email. API keys you enter are encrypted at rest and never sent back to the browser.
+
+---
+
+## 🏠 Self-hosting
+
+Collector is a single Node.js app (it serves both the interface and the API) backed by PostgreSQL. It needs:
+
+| | |
 | --- | --- |
-| `PORT` | HTTP port |
-| `JWT_SECRET` | Signs session tokens **and** encrypts stored API keys. Keep it stable. |
-| `PUBLIC_URL` | Public URL of the app, used in magic links (`https://…` also enables secure cookies) |
-| `DB_HOST` `DB_PORT` `DB_NAME` `DB_USER` `DB_PASSWORD` | Postgres |
-| `SMTP_HOST` `SMTP_PORT` `SMTP_USER` `SMTP_PASSWORD` `SMTP_FROM` | Magic-link emails (port 465 = implicit TLS) |
+| **Node.js** | 23.6 or later (24 LTS recommended) |
+| **PostgreSQL** | 13 or later |
+| **An SMTP account** | to send the sign-in emails: your mail provider, a transactional service (Brevo, Mailgun, Postmark…), your host's |
+| **A domain with HTTPS** | phones only give websites access to the camera over HTTPS, and the app can only be installed from an HTTPS address |
 
-Optional: `DATA_DIR` (default `./uploads`) for cover images.
+### 1. Get the code and build it
 
-The database is brought up to date on every start, so deploying a new version needs no extra step:
-1. missing tables are created from the models (`sequelize.sync`) and new columns are added (additive only, nothing is dropped);
-2. pending migrations (`server/migrations/`, for data that moves between fields) are applied once each, in order, each in its own transaction, and recorded in the `migrations` table.
+```bash
+git clone https://github.com/myeti/collector.git
+cd collector
+npm ci
+npm run build
+```
 
-`npm run db:sync` does the same without starting the server. In development, `npm run db:sync -- --alter` then makes the tables match the models exactly, dropping the columns they no longer have; or start from an empty database (`docker compose down -v`). A shipped migration is never edited: add a new one to `server/migrations/index.ts`.
-The `unaccent` extension is enabled when possible so search ignores accents ("asterix" finds "Astérix").
+> Run `npm ci` without `NODE_ENV=production` in the environment: the build tools are development dependencies.
 
-## Progressive Web App
+### 2. Create the database
 
-Production builds are installable (Android/desktop: install prompt; iPhone: Share → Add to Home Screen; the app shows the hint).
+With an existing PostgreSQL server:
 
-- **Service worker** (`app/sw.js`, built into `dist/sw.js` with a build id): the app shell is pre-cached, covers are cached as viewed, API reads are network-first with the last copy as fallback, so the collection stays browsable offline (read-only). Lookups and auth calls are never cached; cached data and covers are wiped on logout. After a deploy, the app offers "A new version is available · Reload". Disabled in dev.
-- **Sign-in in an installed app**: iOS home-screen apps cannot receive links and keep their own cookies, so the email carries a 6-digit code next to the link; the login screen accepts it (5 attempts, same expiry as the link). Android routes the link into the installed app. Installed apps get 365-day sessions (60 in a browser).
-- **Shortcut**: long-press the icon → "Scan a barcode".
-- **Icons**: `npm run icons` renders `app/public/icons/*` and the email logo from the cassette drawing.
+```sql
+CREATE USER collector WITH PASSWORD 'a-strong-password';
+CREATE DATABASE collector OWNER collector;
+```
 
-The sign-in email is written in MJML (`server/emails/magic-link.mjml`), compiled once at startup.
+Or in a container:
 
-## Security notes
+```bash
+docker run -d --name collector-db --restart unless-stopped \
+  -e POSTGRES_USER=collector -e POSTGRES_PASSWORD=a-strong-password -e POSTGRES_DB=collector \
+  -p 127.0.0.1:5432:5432 -v collector-db:/var/lib/postgresql/data \
+  postgres:17-alpine
+```
 
-- **Secrets**: `JWT_SECRET` signs sessions **and** encrypts stored API keys. In production it must be random and at least 32 characters (`openssl rand -base64 48`); the server refuses the example value. Changing it signs everyone out and makes stored API keys unreadable (users re-enter them).
-- **Sign-in**: single-use link and 6-digit code (15 min, 5 tries per code, consumed atomically), rate-limited per IP (IPv6 per /64) and per account; unknown emails get the same responses. Sessions are httpOnly cookies; Settings → "Sign out of all devices" revokes every session.
-- **Requests**: state-changing API calls from another origin are refused; security headers and a strict CSP are sent in production. `X-Forwarded-For` is only trusted from proxies on the same machine or a private network.
-- **Outgoing requests**: cover downloads and cloud AI providers only reach public addresses (checked at connection time, size-capped). The "OpenAI-compatible" AI provider may reach local addresses on purpose (self-hosted models).
-- **Covers**: upload names carry an owner signature; items can only use their owner's uploads; files are deleted only when no item uses them.
-- **Dev services** (`docker-compose.yml`) listen on 127.0.0.1 only: Mailpit shows every sign-in email.
+Tables are created on the first start. Collector also enables PostgreSQL's `unaccent` extension so that searching "asterix" finds "Astérix".
 
-## Users & family
+### 3. Configure
 
-- Accounts are created only from the CLI: `npm run create:user -- <email> [--name "…"] [--locale en|fr]`.
-- Sign-in is passwordless: a single-use magic link (15 min), then a 60-day session JWT in an httpOnly cookie.
-- A user can start a family and invite existing users by email. Members see every shelf of the family; each member edits only their own items. When the owner leaves, ownership passes to the oldest member.
+Copy the example and edit it:
 
-## Preferences
+```bash
+cp .env.example .env
+```
 
-Each user picks in **Settings → Collections** which collections the interface shows (Books, Music, Movies and Games by default; Custom is hidden) and which one opens on startup (Books by default). Hiding a collection only hides it from the UI: its items are kept and still reachable by link.
+| Variable | |
+| --- | --- |
+| `PORT` | Port the app listens on, e.g. `3000` |
+| `PUBLIC_URL` | The address people open, e.g. `https://collector.example.com` (used in the sign-in emails) |
+| `JWT_SECRET` | A long random secret: `openssl rand -base64 48`. It signs sessions **and** encrypts stored API keys: keep it, and keep it secret. Changing it signs everyone out and makes the saved API keys unreadable. |
+| `DB_HOST` `DB_PORT` `DB_NAME` `DB_USER` `DB_PASSWORD` | PostgreSQL connection |
+| `SMTP_HOST` `SMTP_PORT` `SMTP_USER` `SMTP_PASSWORD` | Mail server. Port 465 uses TLS directly, any other port upgrades with STARTTLS. |
+| `SMTP_FROM` | Sender of the sign-in emails, e.g. `"Collector <collector@example.com>"` |
+| `DATA_DIR` | *Optional.* Where cover images are stored, `./uploads` by default |
 
-## Collections
+All but `DATA_DIR` are required: the server refuses to start without them, or with the example secret.
 
-`book`, `music`, `movie`, `videogame` (shown as "Games") and `custom`. Video games use their platform as category (fixed list grouped by brand: Nintendo, PlayStation, Xbox, Sega, others). On each shelf a quick bar filters on the main dimension: category for books and games, format for music and movies.
+### 4. Create the accounts
 
-## Metadata sources
+There is no public sign-up: accounts are created from the server.
 
-Set in **Settings → Metadata sources**; keys are encrypted at rest (AES-256-GCM) and never sent back to the browser.
+```bash
+npm run create:user -- you@example.com --name "Your name" --locale en
+```
 
-| Media | Keyless | With a key |
+`--locale` is `en` or `fr`. Run it again for each member of the household, then build your family from **Settings → Account**.
+
+### 5. Start it
+
+```bash
+npm start
+```
+
+Open `PUBLIC_URL`, enter your email, and click the link (or type the code) you receive.
+
+To keep it running, a **systemd** service (`/etc/systemd/system/collector.service`):
+
+```ini
+[Unit]
+Description=Collector
+After=network.target postgresql.service
+
+[Service]
+WorkingDirectory=/opt/collector
+ExecStart=/usr/bin/npm start
+Restart=on-failure
+User=collector
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl enable --now collector
+```
+
+### 6. Put it behind HTTPS
+
+Any reverse proxy works; run it on the same machine or the same private network (Collector only trusts forwarded client addresses from there). With [Caddy](https://caddyserver.com), certificates included:
+
+```caddy
+collector.example.com {
+	reverse_proxy localhost:3000
+}
+```
+
+With nginx, allow photo uploads of up to 20 MB:
+
+```nginx
+server {
+    server_name collector.example.com;
+    client_max_body_size 25m;
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    # listen 443 ssl; + your certificates (certbot --nginx does it for you)
+}
+```
+
+---
+
+## 🔌 Metadata sources
+
+Collector asks every source that fits at once, and lets you pick. Many work out of the box; add keys in **Settings → Sources** to unlock the others (each user has their own keys).
+
+| | Without a key | With an API key |
 | --- | --- | --- |
-| Books | Open Library, MangaDex, Google Books (key optional) | ISBNdb, Comic Vine |
-| Music | MusicBrainz, Deezer, Apple iTunes | Discogs, Spotify, Last.fm |
-| Movies | — | TMDB, OMDb |
-| Games | — | IGDB (Twitch), RAWG |
-| Any barcode | UPCitemdb (free trial quota) | Barcode Lookup, Go-UPC |
+| **Books** | Open Library, Google Books, MangaDex | ISBNdb, Comic Vine |
+| **Music** | MusicBrainz, Deezer, Apple iTunes | Discogs, Spotify, Last.fm |
+| **Movies** | | TMDB, OMDb |
+| **Games** | | IGDB (via Twitch), RAWG |
+| **Any barcode** | UPCitemdb (small daily quota) | Barcode Lookup, Go-UPC |
 
-**Scanning** queries every barcode-capable source in parallel. ISBNs automatically switch to Books. For movies and games, where specialised APIs have no barcode search, the product name from the barcode databases is cleaned up ("[Blu-ray] Édition collector"…) and used as a title search. All results land in the cherry-picker: take a whole match, then adjust field by field (values most sources agree on are pre-selected).
+For movies and games, the best start is a **TMDB** key and a **RAWG** or **IGDB** key: their barcodes are first resolved through the product databases, then searched by title.
 
-**AI (optional)**: Settings → AI assistant, pick a provider: OpenAI, Anthropic (Claude), Google (Gemini), Mistral, or "OpenAI-compatible" (OpenRouter, Ollama, LM Studio…, base URL required), then a key and a vision-capable model id. Calls go through the [Vercel AI SDK](https://ai-sdk.dev) (`server/lib/ai.ts`): one code path, the provider packages handle each vendor's API and structured-output mode, and answers are validated against schemas built from `shared/media.js`. A cover photo gets read by the model, and what it finds seeds a regular barcode/title lookup.
+<p align="center">
+  <img src="docs/screenshots/sources-desktop.webp" width="72%" alt="The sources settings on desktop">
+  <img src="docs/screenshots/sources-mobile.webp" width="23%" alt="The sources settings on a phone">
+</p>
 
-**Shelf photo (AI only)**: one photo of a shelf, a pile of CDs, a stack of games… The model lists every readable item (titles already in the collection are flagged), then you review them one by one: each item is looked up in the regular sources and lands in the cherry-picker (the AI reading is always one of the choices), with Skip / Verify / Save. The review session survives a detour through the form and a page reload.
+### AI assistant (optional)
 
-## Project layout
+Photo reading (a cover, or a whole shelf at once) needs a model that understands images. In **Settings → Sources → AI assistant**, pick **OpenAI**, **Anthropic**, **Google Gemini**, **Mistral**, or any **OpenAI-compatible** server (OpenRouter, or your own Ollama or LM Studio), then a key and a vision model. Without it, everything else works.
 
-```
-shared/media.js        media types, fields, categories, genres, formats (server + app)
-server/
-  main.ts              Express app, static app + SPA fallback
-  config.ts db.ts      env, Sequelize models
-  routes/              auth, items, lookup, uploads, family, settings
-  connectors/          one file per media family + aggregator
-  lib/                 jwt, crypto, mailer, images (sharp), llm
-  importers/           CSV imports (Goodreads, StoryGraph, Discogs, Letterboxd, RAWG…)
-  migrations/          data changes between releases, applied on start
-  scripts/             create-user, db-sync
-app/
-  main.js App.vue      router, shell (sidebar / bottom nav)
-  views/ components/   library, item, form, add (scan/search/photo), cherry-picker…
-  i18n/                en.js, fr.js
+---
+
+## 🔄 Updating
+
+```bash
+git pull
+npm ci
+npm run build
+sudo systemctl restart collector
 ```
 
-Keyboard: `/` search, `1`–`5` switch shelf, `n` add. On touch screens, swipe left/right on the library to change shelf.
+The database is upgraded automatically on start. Read the [changelog](CHANGELOG.md) first: when a release asks for something on your side (a renamed setting, say), it says so under **Upgrading**.
+
+After an update, open apps show **"A new version is available · Reload"**.
+
+## 💾 Backups
+
+Two things to keep: the database and the covers folder.
+
+```bash
+pg_dump -U collector -h localhost collector > collector-$(date +%F).sql
+tar czf covers-$(date +%F).tgz uploads/     # or your DATA_DIR
+```
+
+To restore, load the dump into an empty database (`psql -U collector -h localhost collector < collector-….sql`), put the covers back in place, and start Collector with the **same `JWT_SECRET`**.
+
+---
+
+## 💡 Tips
+
+- **Keyboard**: `/` to search, `1`–`5` to switch shelf, `n` to add. On a phone, swipe left or right on a shelf to change shelf.
+- **Hide what you do not collect**: **Settings → Account → Collections** chooses the shelves shown and the one opened first. Hidden shelves keep their items.
+- **A pile to add?** After saving a scanned item, **Scan another** goes straight back to the camera.
+- **Lost a phone?** **Settings → Sign out of all devices** (under Sign out) ends every session.
+
+## 🩺 Troubleshooting
+
+| | |
+| --- | --- |
+| **The sign-in email never arrives** | Check the server's logs for "Sign-in email … failed", then your SMTP settings and the spam folder. |
+| **The camera does not start on a phone** | The site must be opened over HTTPS, and the browser allowed to use the camera. You can always type the code under the camera. |
+| **Covers are missing after an update** | Check that `DATA_DIR` points to the folder holding them (before 0.3.0, the setting was named `UPLOAD_DIR`). |
+| **"Missing environment variables" on start** | Every variable of the table above is required, except `DATA_DIR`. |
+| **Searching "asterix" does not find "Astérix"** | The database user could not enable `unaccent` (the logs say so on start): run `CREATE EXTENSION unaccent;` in the database as an administrator. |
+
+---
+
+<p align="center">
+  <b>Made by Magalon</b>, for the people whose shelves are overflowing.<br>
+  Want to help? Read <a href="CONTRIBUTING.md">CONTRIBUTING.md</a>.<br>
+  <sub>Released under the <a href="LICENSE">MIT license</a>.</sub>
+</p>

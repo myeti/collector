@@ -5,6 +5,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- Open source under the MIT license.
+- "Made by Magalon" under the version in the settings.
+
+### Changed
+- The README is now written for people who self-host Collector (features with desktop and phone screenshots, installation, configuration, HTTPS, updating, backups, troubleshooting); everything about working on the code moved to CONTRIBUTING.md.
+
 ## [0.3.0] - 2026-11-23
 
 ### Added

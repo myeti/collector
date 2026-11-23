@@ -286,6 +286,7 @@ export default {
     saved: 'Settings saved',
     keyPlaceholder: 'Paste your key',
     logoutEverywhere: 'Sign out of all devices',
+    madeBy: 'Made by {author}',
     logoutEverywhereConfirm: 'Sign out of every device using this account, including this one?',
     addSource: 'Add a source',
     addSourceText: 'Pick a service, then paste its API key. It becomes active as soon as the key is saved.',

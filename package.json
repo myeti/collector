@@ -1,6 +1,16 @@
 {
     "name": "collector",
     "version": "0.3.0",
+    "author": "Magalon",
+    "description": "Self-hosted manager for your physical collection: books, records, films and games.",
+    "homepage": "https://github.com/myeti/collector#readme",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/myeti/collector.git"
+    },
+    "bugs": "https://github.com/myeti/collector/issues",
+    "license": "MIT",
+    "private": true,
     "type": "module",
     "dependencies": {
         "@ai-sdk/anthropic": "^4.0.107",

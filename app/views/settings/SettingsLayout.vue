@@ -28,7 +28,7 @@
           <button class="btn ghost sm block everywhere" @click="logoutEverywhere">
             <vue-feather type="shield-off" size="13" /> {{ $t('settings.logoutEverywhere') }}
           </button>
-          <p class="version">Collector v{{ version }}</p>
+          <p class="version">Collector v{{ version }}<template v-if="author"><br>{{ $t('settings.madeBy', { author }) }}</template></p>
         </div>
       </nav>
 
@@ -55,7 +55,7 @@ const desktop = () => window.matchMedia('(min-width: 900px)').matches
 
 export default {
   name: 'SettingsLayout',
-  data: () => ({ store, settings, PAGES, version: __APP_VERSION__ }),
+  data: () => ({ store, settings, PAGES, version: __APP_VERSION__, author: __APP_AUTHOR__ }),
   computed: {
     current() { return PAGES.find((p) => this.$route.path === `/settings/${p.id}`) || null },
     isSub() { return !!this.current },
@@ -111,7 +111,7 @@ export default {
 .everywhere { color: var(--faint); font-weight: 500; }
 .session .btn .vue-feather { flex: none; }
 .everywhere:hover { color: var(--danger); }
-.version { margin: 10px 0 0; text-align: center; font-size: 11px; color: var(--faint); letter-spacing: 0.04em; font-variant-numeric: tabular-nums; }
+.version { margin: 10px 0 0; text-align: center; font-size: 11px; line-height: 1.6; color: var(--faint); letter-spacing: 0.04em; font-variant-numeric: tabular-nums; }
 .content { min-width: 0; }
 
 /* Phones: a subpage replaces the menu, and names itself in the header */
