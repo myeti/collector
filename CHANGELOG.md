@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-23
+
 ### Added
 - Books scanner: the ISBN printed as text is read too (OCR, for books whose barcode is not their ISBN). An ISBN wins: a barcode that is not one waits 2 seconds for the ISBN text, then is used; the item keeps both. The scanner says which one it used.
   - Tesseract (tesseract.js) in a background worker, with model-free image cleanup (adaptive threshold, straightening up to ±12°); only ISBNs with a valid check digit, read twice in a row, are accepted.
