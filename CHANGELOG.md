@@ -5,6 +5,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- Export your collection (Settings → Import & export → Export): one `.zip` with every item you own and, optionally, its cover. Items of other family members are not included.
+- Import a Collector export ("Collector" among the importers): every collection at once, with the same preview as the other imports (items already owned left unticked). Items come with their covers, read status, notes and custom fields; covers are copied in the background with their progress shown.
+  - Nothing in an archive is trusted: entry sizes are capped and checked (zip bombs), file names are never used on disk, the items are validated like any save, and each cover is decoded and re-encoded, so a file that is not a picture is left out.
+
+### Changed
+- Settings → Import is now **Import & export**.
+
+### Security
+- Covers (uploads, photos, imports) only accept raster images: SVG, PDF and other non-photo formats are refused, and an empty file no longer reaches the image decoder.
+
+### Upgrading
+- Behind nginx, raise `client_max_body_size` (e.g. `1g`) so large exports can be imported.
+
 ## [0.3.1] - 2026-11-23
 
 ### Added

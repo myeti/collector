@@ -17,7 +17,7 @@
 
     <ul v-if="rows.length" class="rows panel">
       <li v-for="row in rows.slice(0, limit)" :key="row.key" :class="{ off: !on(row) }">
-        <ItemRow as="label" :item="{ ...row.fields, type, cover: row.cover }" :thumb="thumbs" class="row">
+        <ItemRow as="label" :item="{ ...row.fields, type: row.type || type, cover: row.cover }" :thumb="thumbs" class="row">
           <template #lead><input type="checkbox" class="check" :checked="on(row)" @change="toggle(row.key, $event.target.checked)" /></template>
           <template #badges>
             <span v-for="s in row.sources || []" :key="s" class="badge">{{ s }}</span>
@@ -50,7 +50,7 @@ export default {
   components: { ItemRow, DuplicateBadge },
   props: {
     type: { type: String, required: true },
-    /** [{ key, fields, cover?, sources?, duplicate? }] (the rows shown: filters are the parent's) */
+    /** [{ key, fields, type?, cover?, sources?, duplicate? }] (the rows shown: filters are the parent's; type: a row of another type) */
     rows: { type: Array, required: true },
     /** Keys of the ticked rows */
     modelValue: { type: Array, required: true },

@@ -16,6 +16,7 @@ import { familyRouter } from './routes/family.ts'
 import { settingsRouter } from './routes/settings.ts'
 import { importRouter } from './routes/import.ts'
 import { coversRouter } from './routes/covers.ts'
+import { exportRouter } from './routes/export.ts'
 
 const app = express()
 // Client IPs (rate limits) come from X-Forwarded-For only when the request arrives through a proxy on this
@@ -69,6 +70,7 @@ app.use('/api/family', requireAuth, familyRouter)
 app.use('/api/settings', requireAuth, settingsRouter)
 app.use('/api/import', requireAuth, importRouter)
 app.use('/api/covers', requireAuth, coversRouter)
+app.use('/api/export', requireAuth, exportRouter)
 app.use('/api', (_req, _res, next) => next(new HttpError(404, 'not_found')))
 
 // Covers are private to signed-in users.

@@ -42,11 +42,11 @@ shared/media.js        media types, fields, formats, genres, ISBN helpers (serve
 server/
   main.ts              Express app, security headers, static app + SPA fallback
   config.ts db.ts      environment, Sequelize models, schema updates
-  routes/              auth, items, lookup, uploads, covers, import, family, settings
+  routes/              auth, items, lookup, uploads, covers, import, export, family, settings
   connectors/          metadata sources, one file per media family + aggregator
   importers/           CSV imports (Goodreads, StoryGraph, Discogs, Letterboxd, RAWG)
   migrations/          data changes between releases, applied on start
-  lib/                 jwt, crypto, mailer, images (sharp), AI, duplicate matching
+  lib/                 jwt, crypto, mailer, images (sharp), archive (export zip), AI, duplicate matching
   emails/              sign-in email (MJML, compiled at startup)
   scripts/             create-user, db-sync, icons, bump, dev-https
 app/
@@ -86,6 +86,12 @@ Keys are stored per user, encrypted (AES-256-GCM with a key derived from `JWT_SE
 
 Importers live in `server/importers/`, one per media family, on top of the CSV reader in `csv.ts`. An importer recognises its service from the file's columns, maps each row to item fields, and leaves out what is not owned (wishlists, to-read shelves…). Duplicates are flagged by the shared matching in `server/lib/matching.ts`.
 
+### Collector's own archive
+
+`server/lib/archive.ts` writes and reads Collector's export: a `.zip` with `collector.json` (`{ format: "collector-export", version, app, exported_at, items }`, each item its `type`, its fields as in `shared/media.js`, `extra`, `added_at`, and `cover`: `covers/<n>.webp` in the archive, or an `https://` link) and the `covers/` files. A breaking change to this format bumps `version`; older versions must stay importable.
+
+Imports trust nothing in the archive: only `collector.json` and `covers/<n>.webp` entries are read, by exact name, never written to disk under their own name; entry sizes are capped and checked while inflating (zip bombs, lying headers); the JSON goes through the same validation as any save; ids, owners and dates are never taken from it; and every cover is decoded and re-encoded by `storeImage` (raster formats only), so nothing but a clean picture is kept. The archive is uploaded once, kept in a temporary file between the preview, the import and the copy of its covers (in small batches driven by the app, so a large archive never holds a request open), then deleted.
+
 ## How some parts work
 
 ### Adding items
@@ -108,7 +114,7 @@ Every method (barcode, photo, search, manual) ends in the same review (`ReviewVi
 - **Sign-in**: single-use link and 6-digit code (15 min, 5 tries per code, consumed atomically), rate-limited per IP (IPv6 per /64) and per account; unknown emails get the same responses. Sessions are httpOnly cookies; "Sign out of all devices" revokes every session.
 - **Requests**: state-changing API calls from another origin are refused; security headers and a strict CSP are sent in production (`script-src` allows `'wasm-unsafe-eval'` for the OCR engine only). `X-Forwarded-For` is only trusted from proxies on the same machine or a private network.
 - **Outgoing requests**: cover downloads and cloud AI providers only reach public addresses (checked at connection time, size-capped). The "OpenAI-compatible" provider may reach local addresses on purpose (self-hosted models).
-- **Covers**: upload names carry an owner signature; items can only use their owner's uploads; files are deleted only when no item uses them.
+- **Covers**: every image is decoded and re-encoded to webp (raster formats only: no SVG or PDF; metadata and appended data dropped; pixel count capped). Upload names carry an owner signature; items can only use their owner's uploads; files are deleted only when no item uses them.
 
 Found a vulnerability? Please report it privately to the maintainer rather than in a public issue.
 

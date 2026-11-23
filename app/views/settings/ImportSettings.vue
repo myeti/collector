@@ -9,24 +9,37 @@
         <div class="sources">
           <button
             v-for="src in sources" :key="src.id" class="source" :class="{ on: source?.id === src.id }"
-            :style="{ '--c': ACCENTS[src.type].color }" :aria-pressed="source?.id === src.id" @click="source = src"
+            :style="{ '--c': src.type ? ACCENTS[src.type].color : 'var(--accent)' }" :aria-pressed="source?.id === src.id" @click="source = src"
           >
-            <span class="source-ico"><vue-feather :type="MEDIA[src.type].icon" size="15" /></span>
+            <span class="source-ico"><vue-feather :type="src.type ? MEDIA[src.type].icon : 'archive'" size="15" /></span>
             <span class="grow">
               <strong>{{ src.name }}</strong>
-              <small>{{ $t(`media.${src.type}`) }}</small>
+              <small>{{ src.type ? $t(`media.${src.type}`) : $t('import.allShort') }}</small>
             </span>
           </button>
         </div>
 
         <transition name="fade" mode="out-in">
-          <FileDrop v-if="source" :key="source.id" class="how" accept=".csv,text/csv" :choose-label="$t('import.chooseFile')" @file="read">
+          <FileDrop
+            v-if="source" :key="source.id" class="how" :accept="isCollector ? '.zip,application/zip' : '.csv,text/csv'"
+            :choose-label="$t(isCollector ? 'import.chooseZip' : 'import.chooseFile')" @file="read"
+          >
             <p class="how-text">{{ $t(`import.sources.${source.id}`) }}</p>
-            <a :href="source.url" target="_blank" rel="noopener" class="btn ghost sm"><vue-feather type="external-link" size="12" /> {{ $t('import.openService', { name: source.name }) }}</a>
+            <a v-if="source.url" :href="source.url" target="_blank" rel="noopener" class="btn ghost sm"><vue-feather type="external-link" size="12" /> {{ $t('import.openService', { name: source.name }) }}</a>
           </FileDrop>
         </transition>
       </section>
       <p class="faint rules"><vue-feather type="info" size="12" /> {{ $t('import.rules') }}</p>
+
+      <!-- Export: a Collector archive, to keep or to import on another server -->
+      <section class="panel export">
+        <div class="panel-title"><vue-feather type="archive" size="12" /> {{ $t('export.title') }}</div>
+        <p class="muted intro">{{ $t('export.intro') }}</p>
+        <div class="export-row">
+          <label class="check-line"><input v-model="exportCovers" type="checkbox" /> {{ $t('export.covers') }}</label>
+          <a class="btn" :href="`/api/export?covers=${exportCovers ? 1 : 0}`" download><vue-feather type="download" size="14" /> {{ $t('export.download') }}</a>
+        </div>
+      </section>
 
       <!-- Items saved without a cover (imports, manual entries) -->
       <section v-if="missingTypes.length" class="panel missing">
@@ -52,9 +65,9 @@
     <template v-else-if="step === 'preview'">
       <section class="panel summary">
         <div class="sum-head">
-          <span class="source-ico" :style="{ '--c': ACCENTS[preview.type].color }"><vue-feather :type="MEDIA[preview.type].icon" size="16" /></span>
+          <span class="source-ico" :style="{ '--c': preview.type ? ACCENTS[preview.type].color : 'var(--accent)' }"><vue-feather :type="preview.type ? MEDIA[preview.type].icon : 'archive'" size="16" /></span>
           <div class="grow">
-            <strong>{{ preview.name }} · {{ $t(`media.${preview.type}`) }}</strong>
+            <strong>{{ preview.name }} · {{ preview.type ? $t(`media.${preview.type}`) : $t('import.allCollections') }}</strong>
             <p class="faint small truncate">{{ fileName }}</p>
           </div>
         </div>
@@ -72,7 +85,7 @@
       </section>
 
       <SelectList
-        v-model="selected" class="list" :type="preview.type" :rows="rows" select-all
+        v-model="selected" class="list" :type="preview.type || 'book'" :rows="rows" select-all
         :action-label="$t('import.go', selected.length)" action-icon="download" :busy="importing" @confirm="commit"
       >
         <template #toolbar>
@@ -82,9 +95,11 @@
         </template>
         <template #badges="{ row }">
           <span v-if="!row.duplicate && row.repeated" class="badge repeated"><vue-feather type="copy" size="10" /> {{ $t('import.repeated') }}</span>
-          <span v-if="row.fields.consumed" class="badge">{{ $t(`consumed.${preview.type}`) }}</span>
+          <span v-if="!preview.type" class="badge"><vue-feather :type="MEDIA[row.type].icon" size="10" /> {{ $t(`media.${row.type}`) }}</span>
+          <span v-if="row.fields.consumed" class="badge">{{ $t(`consumed.${row.type || preview.type}`) }}</span>
           <span v-if="row.fields.digitalized" class="badge"><vue-feather type="cloud" size="10" /> {{ $t('library.copies.digital') }}</span>
-          <span v-if="row.fields.format && preview.type !== 'videogame'" class="badge">{{ $t(`format.${row.fields.format}`) }}</span>
+          <span v-if="row.fields.format && (row.type || preview.type) !== 'videogame' && (row.type || preview.type) !== 'custom'" class="badge">{{ $t(`format.${row.fields.format}`) }}</span>
+          <span v-if="row.hasCover" class="badge"><vue-feather type="image" size="10" /> {{ $t('import.withCover') }}</span>
         </template>
         <!-- Games listed on several platforms: which one is on the shelf -->
         <template #end="{ row }">
@@ -100,10 +115,10 @@
     <!-- 4. Done -->
     <EmptyState
       v-else-if="step === 'done'" class="panel" icon="check" :title="$t('import.doneTitle', result.created)"
-      :text="$t('import.doneText', { media: $t(`media.${preview.type}`) }) + (result.skipped ? ` ${$t('import.skipped', result.skipped)}` : '')"
+      :text="doneText"
     >
       <button class="btn ghost" @click="reset"><vue-feather type="upload" size="14" /> {{ $t('import.another') }}</button>
-      <router-link class="btn" :to="`/c/${preview.type}`"><vue-feather :type="MEDIA[preview.type].icon" size="14" /> {{ $t('import.open') }}</router-link>
+      <router-link class="btn" :to="`/c/${doneType}`"><vue-feather :type="MEDIA[doneType].icon" size="14" /> {{ $t('import.open') }}</router-link>
       <button v-if="result.ids?.length" class="btn primary" :disabled="coverJob.running" @click="findCovers(result.ids)">
         <vue-feather type="image" size="14" /> {{ $t('covers.findN', result.ids.length) }}
       </button>
@@ -121,7 +136,7 @@ import { api } from '../../lib/api.js'
 import { store, ACCENTS } from '../../lib/store.js'
 import { sparkle } from '../../lib/sparkle.js'
 import { toastError } from '../../lib/toast.js'
-import { coverJob, findCovers } from '../../lib/covers.js'
+import { coverJob, findCovers, copyCovers } from '../../lib/covers.js'
 import { MEDIA } from '../../../shared/media.js'
 
 export default {
@@ -141,8 +156,16 @@ export default {
     result: null,
     missing: {}, // media type -> ids of the user's items without a cover
     coverJob,
+    exportCovers: true,
   }),
   computed: {
+    isCollector() { return this.source?.id === 'collector' },
+    /** The collection the done screen opens: the import's, or the first one an archive filled */
+    doneType() { return this.preview?.type || this.result?.types?.find((t) => store.enabledTypes.includes(t)) || store.type },
+    doneText() {
+      const text = this.preview.type ? this.$t('import.doneText', { media: this.$t(`media.${this.preview.type}`) }) : this.$t('import.doneTextAll')
+      return text + (this.result.covers?.length ? ` ${this.$t('import.coversCopying')}` : '') + (this.result.skipped ? ` ${this.$t('import.skipped', this.result.skipped)}` : '')
+    },
     missingTypes() { return store.enabledTypes.filter((t) => this.missing[t]?.length) },
     visible() {
       const items = this.preview?.items || []
@@ -150,7 +173,7 @@ export default {
       if (this.show === 'owned') return items.filter((i) => this.known(i))
       return items
     },
-    rows() { return this.visible.map((i) => ({ ...i, key: i.id })) },
+    rows() { return this.visible.map((i) => ({ ...i, key: i.id, cover: undefined, hasCover: i.cover })) },
     newCount() { return this.preview.items.filter((i) => !this.known(i)).length },
     dupCount() { return this.preview.items.length - this.newCount },
     excludedSummary() {
@@ -183,7 +206,7 @@ export default {
       form.append('source', this.source.id)
       form.append('file', file)
       try {
-        this.preview = await api.post('/import/preview', form)
+        this.preview = await api.post(this.isCollector ? '/import/collector/preview' : '/import/preview', form)
         // Already in the collection, or a repeated row: shown, but left unticked
         this.selected = this.preview.items.filter((i) => !this.known(i)).map((i) => i.id)
         this.show = 'all'
@@ -198,8 +221,14 @@ export default {
       this.importing = true
       try {
         const picked = new Set(this.selected)
-        const items = this.preview.items.filter((i) => picked.has(i.id)).map((i) => i.fields)
-        this.result = await api.post('/import/commit', { type: this.preview.type, items })
+        const rows = this.preview.items.filter((i) => picked.has(i.id))
+        if (this.preview.source === 'collector') {
+          // Its covers are copied next, in the background (the progress shows in the app's status pill)
+          this.result = await api.post('/import/collector/commit', { token: this.preview.token, items: rows.map((i) => ({ id: i.id, fields: i.fields })) })
+          if (this.result.covers.length) copyCovers(this.preview.token, this.result.covers)
+        } else {
+          this.result = await api.post('/import/commit', { type: this.preview.type, items: rows.map((i) => i.fields) })
+        }
         this.step = 'done'
         store.refreshStats()
         this.$nextTick(() => sparkle(button, { count: 30 }))
@@ -210,6 +239,8 @@ export default {
       }
     },
     reset() {
+      // A previewed archive not imported: deleted on the server now rather than when it expires
+      if (this.step === 'preview' && this.preview?.token) api.post('/import/collector/discard', { token: this.preview.token }).catch(() => {})
       this.loadMissing()
       this.step = 'pick'
       this.preview = null
@@ -231,8 +262,9 @@ export default {
   background: transparent; text-align: left; transition: all 0.2s var(--ease);
 }
 .source:hover { border-color: var(--border-strong); }
+.source .grow { min-width: 0; }
 .source strong { display: block; font-size: 13px; font-weight: 600; }
-.source small { display: block; font-size: 11.5px; color: var(--faint); }
+.source small { display: block; font-size: 11.5px; color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .source.on { border-color: color-mix(in oklab, var(--c) 50%, transparent); background: color-mix(in oklab, var(--c) 10%, transparent); }
 .source-ico {
   width: 30px; height: 30px; border-radius: var(--r-sm); display: grid; place-items: center; flex: none;
@@ -259,7 +291,9 @@ export default {
 .platform { width: auto; max-width: 46%; height: 32px; font-size: 12.5px; flex: none; }
 .platform.missing { border-color: var(--accent-line); }
 
-.missing { margin-top: 12px; }
+.missing, .export { margin-top: 12px; }
+.export-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.check-line { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
 .miss-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
 .miss-row + .miss-row { border-top: 1px solid var(--border); }
 .miss-row strong { display: block; font-size: 13px; font-weight: 600; }

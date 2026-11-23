@@ -11,7 +11,7 @@
     <transition name="pop">
       <div v-if="coverJob.running" class="pill covers glass" role="status">
         <span class="ring" :style="{ '--p': coverJob.total ? coverJob.done / coverJob.total : 0 }"></span>
-        <span>{{ $t('covers.running', { done: coverJob.done, total: coverJob.total }) }}<span class="faint"> · {{ $t('covers.found', coverJob.found) }}</span></span>
+        <span>{{ $t(coverJob.kind === 'copy' ? 'covers.copying' : 'covers.running', { done: coverJob.done, total: coverJob.total }) }}<span v-if="coverJob.kind === 'find'" class="faint"> · {{ $t('covers.found', coverJob.found) }}</span></span>
         <button class="icon-btn sm plain" :disabled="coverJob.stopping" :title="$t('covers.stop')" :aria-label="$t('covers.stop')" @click="stopCovers">
           <vue-feather :type="coverJob.stopping ? 'loader' : 'x'" size="13" :class="{ spin: coverJob.stopping }" />
         </button>

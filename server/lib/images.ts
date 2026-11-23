@@ -5,6 +5,7 @@ import sharp from 'sharp'
 import { config } from '../config.ts'
 import { safeFetch } from './safe-fetch.ts'
 import { hmac } from './crypto.ts'
+import { badRequest } from './http.ts'
 
 const MAX = 1400
 // Decoding cap: a small file can declare a huge canvas (decompression bomb).
@@ -21,8 +22,21 @@ export function ownsUpload(publicPath: string | null | undefined, ownerId: strin
   return !!m && m[2] === tag(ownerId, m[1])
 }
 
-/** Normalises any image buffer to a webp in DATA_DIR. Returns its public path. */
+// Photos only: vector and document formats (SVG, PDF…) can carry scripts or references to other files.
+const RASTER = new Set(['jpeg', 'png', 'webp', 'gif', 'avif', 'heif', 'tiff'])
+
+/**
+ * Normalises any image buffer to a webp in DATA_DIR. Returns its public path. The file is always decoded and
+ * re-encoded: whatever else the input carried (metadata, appended data) is not kept. Throws on anything else.
+ */
 export async function storeImage(buffer: Buffer, ownerId: string): Promise<string> {
+  let format: string | undefined
+  try {
+    ({ format } = await sharp(buffer, { limitInputPixels: LIMIT_PIXELS }).metadata())
+  } catch {
+    // Not an image at all (sharp also throws synchronously on an empty buffer)
+  }
+  if (!format || !RASTER.has(format)) throw badRequest('not_an_image')
   await fs.mkdir(config.uploadDir, { recursive: true })
   const id = crypto.randomUUID()
   const name = `${id}-${tag(ownerId, id)}.webp`

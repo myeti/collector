@@ -80,9 +80,11 @@ Every candidate then goes through the same **cherry-picker**: all the sources an
   <img src="docs/screenshots/add-mobile.webp" width="23%" alt="Choosing how to add an item, on a phone">
 </p>
 
-### Bring your existing collection
+### Bring your collection in, take it with you
 
 Import the CSV export of **Goodreads**, **The StoryGraph**, **Discogs**, **Letterboxd** or **RAWG**. You see everything before it is saved; duplicates are left unticked, wishlists and to-read shelves are left out. Then let Collector **find the missing covers** in the background.
+
+Your data stays yours: **export** your whole collection as a single `.zip` (every item, with or without the covers), to keep as a backup or to **import into another Collector** server. Every cover in an archive is checked and re-encoded on the way in.
 
 <p align="center">
   <img src="docs/screenshots/import-desktop.webp" width="72%" alt="The import page on desktop">
@@ -219,12 +221,12 @@ collector.example.com {
 }
 ```
 
-With nginx, allow photo uploads of up to 20 MB:
+With nginx, raise the upload size (photos are up to 20 MB, a Collector export with its covers can be much larger):
 
 ```nginx
 server {
     server_name collector.example.com;
-    client_max_body_size 25m;
+    client_max_body_size 1g;
     location / {
         proxy_pass http://127.0.0.1:3000;
         proxy_set_header Host $host;
@@ -277,7 +279,9 @@ After an update, open apps show **"A new version is available · Reload"**.
 
 ## 💾 Backups
 
-Two things to keep: the database and the covers folder.
+Each member can download their own collection from **Settings → Import & export → Export**: one `.zip` with every item and its cover, that any Collector server can import.
+
+For the whole server, keep two things: the database and the covers folder.
 
 ```bash
 pg_dump -U collector -h localhost collector > collector-$(date +%F).sql
@@ -291,6 +295,7 @@ To restore, load the dump into an empty database (`psql -U collector -h localhos
 ## 💡 Tips
 
 - **Keyboard**: `/` to search, `1`–`5` to switch shelf, `n` to add. On a phone, swipe left or right on a shelf to change shelf.
+- **Moving servers?** Export from the old one, import the `.zip` on the new one (**Import → Collector**): items, covers, read status and notes come along.
 - **Hide what you do not collect**: **Settings → Account → Collections** chooses the shelves shown and the one opened first. Hidden shelves keep their items.
 - **A pile to add?** After saving a scanned item, **Scan another** goes straight back to the camera.
 - **Lost a phone?** **Settings → Sign out of all devices** (under Sign out) ends every session.
@@ -301,6 +306,7 @@ To restore, load the dump into an empty database (`psql -U collector -h localhos
 | --- | --- |
 | **The sign-in email never arrives** | Check the server's logs for "Sign-in email … failed", then your SMTP settings and the spam folder. |
 | **The camera does not start on a phone** | The site must be opened over HTTPS, and the browser allowed to use the camera. You can always type the code under the camera. |
+| **Importing a Collector export fails at once** | A reverse proxy may refuse large uploads: raise its limit (`client_max_body_size` with nginx). |
 | **Covers are missing after an update** | Check that `DATA_DIR` points to the folder holding them (before 0.3.0, the setting was named `UPLOAD_DIR`). |
 | **"Missing environment variables" on start** | Every variable of the table above is required, except `DATA_DIR`. |
 | **Searching "asterix" does not find "Astérix"** | The database user could not enable `unaccent` (the logs say so on start): run `CREATE EXTENSION unaccent;` in the database as an administrator. |
