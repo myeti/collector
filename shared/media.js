@@ -56,10 +56,34 @@ export const LANGUAGES = ['fr', 'en']
 // description: synopsis from metadata sources. comment: the user's own note, never filled by sources.
 // digitalized: owned as a digital copy (ebook, files, digital game…) rather than a physical one.
 // language: the item's language (one of LANGUAGES), optional.
+// tags: the user's own labels ("signed", "gift from Mum"…), a list of short strings (see normalizeTags).
 export const COMMON_FIELDS = [
   'title', 'author', 'editor', 'cover', 'genre', 'category', 'format', 'saga', 'volume', 'language',
-  'release_date', 'condition', 'barcode', 'consumed', 'digitalized', 'description', 'comment',
+  'release_date', 'condition', 'barcode', 'consumed', 'digitalized', 'description', 'comment', 'tags',
 ]
+
+export const MAX_TAGS = 20
+export const MAX_TAG_LENGTH = 40
+
+/**
+ * Tags as stored: from a list or a comma-separated text, trimmed, without a leading "#" or commas (the separator),
+ * at most MAX_TAG_LENGTH characters each, the first spelling kept when the same tag comes twice ("Signed", "signed").
+ */
+export function normalizeTags(raw) {
+  const list = Array.isArray(raw) ? raw : String(raw ?? '').split(',')
+  const out = []
+  const seen = new Set()
+  for (const t of list) {
+    if (typeof t !== 'string' && typeof t !== 'number') continue
+    const tag = String(t).replace(/,/g, ' ').replace(/\s+/g, ' ').trim().replace(/^#+\s*/, '').slice(0, MAX_TAG_LENGTH).trim()
+    const key = tag.toLocaleLowerCase()
+    if (!tag || seen.has(key)) continue
+    seen.add(key)
+    out.push(tag)
+    if (out.length >= MAX_TAGS) break
+  }
+  return out
+}
 
 export const MEDIA = {
   // quickFilter: the field offered in the quick bar above the bottom navigation.

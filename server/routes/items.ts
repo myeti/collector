@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { Op } from 'sequelize'
 import { Item, User, sequelize, visibleUserIds, hasUnaccent } from '../db.ts'
-import { MEDIA_TYPES, CONDITIONS, fieldsFor, allowedValue, defaultFormat } from '../../shared/media.js'
+import { MEDIA_TYPES, CONDITIONS, fieldsFor, allowedValue, defaultFormat, normalizeTags } from '../../shared/media.js'
 import { badRequest, forbidden, notFound } from '../lib/http.ts'
 import { importRemoteImage, deleteImage, ownsUpload } from '../lib/images.ts'
 import { serializeItem } from './serializers.ts'
@@ -26,6 +26,7 @@ export function sanitize(body: any, type: string) {
     if (!(f in body)) continue
     let v = body[f]
     if (f === 'consumed' || f === 'digitalized') { out[f] = !!v; continue }
+    if (f === 'tags') { out.tags = normalizeTags(v); continue }
     if (v === '' || v === undefined) v = null
     if (v !== null) v = String(v).trim()
     if (f === 'condition' && v && !CONDITIONS.includes(v)) throw badRequest('invalid_condition')
@@ -41,6 +42,21 @@ export function sanitize(body: any, type: string) {
   }
   if (body.extra && typeof body.extra === 'object' && !Array.isArray(body.extra)) out.extra = body.extra
   return out
+}
+
+/**
+ * Tags take the spelling already used on the shelves the user sees ("first edition" saved as "First edition"
+ * when that one exists), so one tag never splits in two in the filters. Items: their `tags` are rewritten in place.
+ */
+export async function canonicalTags(items: { tags?: string[] }[], user: any) {
+  if (!items.some((i) => i.tags?.length)) return
+  const [rows]: any = await sequelize.query('SELECT DISTINCT unnest(tags) AS tag FROM items WHERE user_id IN (:ids)', { replacements: { ids: await visibleUserIds(user) } })
+  const known = new Map<string, string>()
+  for (const r of rows) if (!known.has(r.tag.toLocaleLowerCase())) known.set(r.tag.toLocaleLowerCase(), r.tag)
+  for (const item of items) {
+    if (!item.tags?.length) continue
+    item.tags = normalizeTags(item.tags.map((t) => known.get(t.toLocaleLowerCase()) || t))
+  }
 }
 
 /** Whose items a shelf shows: one family member (?owner=), or everyone visible to the user. */
@@ -79,7 +95,7 @@ async function releaseCover(cover: string | null, ownerId: string) {
 }
 
 itemsRouter.get('/', async (req: any, res) => {
-  const { type, q, category, genre, consumed, digitalized, format, condition, language, sort = 'title' } = req.query
+  const { type, q, category, genre, consumed, digitalized, format, condition, language, saga, sort = 'title' } = req.query
   const limit = Math.min(Number(req.query.limit) || 60, 200)
   const offset = Math.max(Number(req.query.offset) || 0, 0)
   const where: any = { user_id: { [Op.in]: await shelfOwners(req) } }
@@ -89,6 +105,10 @@ itemsRouter.get('/', async (req: any, res) => {
   if (format) where.format = format
   if (language) where.language = language
   if (condition) where.condition = condition
+  if (saga) where.saga = String(saga)
+  // Tags: items having every one of them
+  const tags = normalizeTags(req.query.tags)
+  if (tags.length) where.tags = { [Op.contains]: tags }
   if (consumed === 'true' || consumed === 'false') where.consumed = consumed === 'true'
   if (digitalized === 'true' || digitalized === 'false') where.digitalized = digitalized === 'true'
   if (q && String(q).trim()) {
@@ -98,7 +118,12 @@ itemsRouter.get('/', async (req: any, res) => {
       const match = (f: string) => hasUnaccent
         ? sequelize.where(sequelize.fn('unaccent', sequelize.col(`item.${f}`)), Op.iLike, sequelize.fn('unaccent', pattern))
         : { [f]: { [Op.iLike]: pattern } }
-      return { [Op.or]: [...SEARCHABLE.map(match), { volume: word }] }
+      // Tags too: matched within their joined text
+      const joined = sequelize.fn('array_to_string', sequelize.col('item.tags'), ' ')
+      const inTags = hasUnaccent
+        ? sequelize.where(sequelize.fn('unaccent', joined), Op.iLike, sequelize.fn('unaccent', pattern))
+        : sequelize.where(joined, Op.iLike, pattern)
+      return { [Op.or]: [...SEARCHABLE.map(match), inTags, { volume: word }] }
     })
   }
 
@@ -126,21 +151,31 @@ itemsRouter.get('/stats', async (req: any, res) => {
   res.json({ stats })
 })
 
-/** Value counts for the quick filter bar: { category: [{ value, count }], format: [...] }. */
+/**
+ * Value counts for the quick filter bar and the filters: { category: [{ value, count }], format, saga, tags }.
+ * Sagas and tags are sorted by name, the others by count.
+ */
 itemsRouter.get('/facets', async (req: any, res) => {
   const type = String(req.query.type || '')
   if (!MEDIA_TYPES.includes(type)) throw badRequest('invalid_type')
   const ids = await shelfOwners(req)
   const facets: Record<string, { value: string; count: number }[]> = {}
-  for (const field of ['category', 'format']) {
+  for (const field of ['category', 'format', 'saga']) {
     const rows: any[] = await Item.findAll({
       where: { user_id: { [Op.in]: ids }, type, [field]: { [Op.ne]: null } },
       attributes: [[sequelize.col(field), 'value'], [sequelize.fn('COUNT', sequelize.col('id')), 'count']],
       group: [field],
       raw: true,
     })
-    facets[field] = rows.map((r) => ({ value: r.value, count: Number(r.count) })).sort((a, b) => b.count - a.count)
+    facets[field] = rows.map((r) => ({ value: r.value, count: Number(r.count) }))
+      .sort(field === 'saga' ? (a, b) => a.value.localeCompare(b.value) : (a, b) => b.count - a.count)
   }
+  const [tags]: any = await sequelize.query(
+    `SELECT tag AS value, COUNT(*) AS count FROM items, unnest(tags) AS tag
+     WHERE user_id IN (:ids) AND type = :type GROUP BY tag`,
+    { replacements: { ids, type } },
+  )
+  facets.tags = tags.map((r: any) => ({ value: r.value, count: Number(r.count) })).sort((a: any, b: any) => a.value.localeCompare(b.value))
   res.json({ facets })
 })
 
@@ -157,12 +192,17 @@ itemsRouter.post('/duplicates', async (req: any, res) => {
   res.json({ duplicate: match(fields) })
 })
 
-/** Distinct values already used, to power autocompletion (sagas, authors, labels…). */
+/** Distinct values already used, to power autocompletion (sagas, authors, labels, tags…). */
 itemsRouter.get('/suggestions', async (req: any, res) => {
   const field = String(req.query.field || '')
-  const allowed = ['author', 'editor', 'saga', 'genre', 'category', 'format']
+  const allowed = ['author', 'editor', 'saga', 'genre', 'category', 'format', 'tags']
   if (!allowed.includes(field)) throw badRequest('invalid_field')
   const ids = await visibleUserIds(req.user)
+  // Tags: those used in every collection (a "signed" book, a "signed" record)
+  if (field === 'tags') {
+    const [rows]: any = await sequelize.query('SELECT DISTINCT unnest(tags) AS value FROM items WHERE user_id IN (:ids) LIMIT 500', { replacements: { ids } })
+    return res.json({ values: rows.map((r: any) => r.value).sort((a: string, b: string) => a.localeCompare(b)) })
+  }
   const where: any = { user_id: { [Op.in]: ids }, [field]: { [Op.ne]: null } }
   if (req.query.type) where.type = req.query.type
   const rows: any[] = await Item.findAll({
@@ -181,6 +221,7 @@ itemsRouter.post('/', async (req: any, res) => {
   const data = sanitize(req.body, type)
   if (!data.title) throw badRequest('title_required')
   data.format ||= defaultFormat(type) // required where the type has a list
+  await canonicalTags([data], req.user)
   await prepareCover(data, req.user)
   const item: any = await Item.create({ ...data, type, user_id: req.user.id })
   item.owner = req.user
@@ -193,6 +234,7 @@ itemsRouter.put('/:id', async (req: any, res) => {
   const type = MEDIA_TYPES.includes(req.body?.type) ? req.body.type : item.type
   const data = sanitize(req.body, type)
   if ('title' in data && !data.title) throw badRequest('title_required')
+  await canonicalTags([data], req.user)
   await prepareCover(data, req.user, item.cover)
   const previousCover = item.cover
   await item.update({ ...data, type })

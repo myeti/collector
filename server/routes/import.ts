@@ -12,7 +12,7 @@ import { openArchive } from '../lib/archive.ts'
 import { storeImage, deleteImage } from '../lib/images.ts'
 import { badRequest, HttpError } from '../lib/http.ts'
 import { throttled } from '../lib/guard.ts'
-import { sanitize } from './items.ts'
+import { sanitize, canonicalTags } from './items.ts'
 
 export const importRouter = Router()
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } })
@@ -221,6 +221,7 @@ importRouter.post('/collector/commit', async (req: any, res) => {
       skipped++
     }
   }
+  await canonicalTags(valid, req.user)
   const created: any[] = []
   await sequelize.transaction(async (transaction: any) => {
     for (let i = 0; i < valid.length; i += 500) created.push(...await Item.bulkCreate(valid.slice(i, i + 500), { transaction }))

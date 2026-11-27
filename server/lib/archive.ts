@@ -37,7 +37,7 @@ export function exportArchive(items: any[], { covers, version }: { covers: boole
     const entry: Record<string, any> = { type: json.type }
     for (const f of fieldsFor(json.type)) {
       if (f === 'cover') continue
-      if (json[f] !== null && json[f] !== undefined && json[f] !== '') entry[f] = json[f]
+      if (json[f] !== null && json[f] !== undefined && json[f] !== '' && !(Array.isArray(json[f]) && !json[f].length)) entry[f] = json[f]
     }
     if (json.extra && Object.keys(json.extra).length) entry.extra = json.extra
     if (/^https:\/\//i.test(json.cover || '')) entry.cover = json.cover

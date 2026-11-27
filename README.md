@@ -23,7 +23,7 @@
 
 ### Your shelves, beautifully
 
-Books (novels, comics, manga, magazines…), music (vinyl, CD, tape), movies (DVD, Blu-ray, 4K) and video games, each on its own shelf with its own colour. Grid or list, accent-insensitive search, filters (format, genre, language, read / not read, physical or digital copy, owner) and a quick bar to jump between formats.
+Books (novels, comics, manga, magazines…), music (vinyl, CD, tape), movies (DVD, Blu-ray, 4K) and video games, each on its own shelf with its own colour. Grid or list, accent-insensitive search, filters (format, genre, saga, tags, language, read / not read, physical or digital copy, owner) and a quick bar to jump between formats.
 
 <p align="center">
   <img src="docs/screenshots/books-desktop.webp" width="72%" alt="The books shelf on desktop">
@@ -53,7 +53,7 @@ Books (novels, comics, manga, magazines…), music (vinyl, CD, tape), movies (DV
 
 ### Every item, in detail
 
-Author, publisher or label, saga and volume, format, genre, language, release date, condition, read / listened / watched / played, a synopsis from the sources and your own notes. Mark something as a digital copy when you own it but not on the shelf.
+Author, publisher or label, saga and volume, format, genre, language, release date, condition, read / listened / watched / played, a synopsis from the sources and your own notes. Mark something as a digital copy when you own it but not on the shelf, and add your own **tags** (`#signed`, `#first edition`, `#to lend`…): tap one to see everything that has it.
 
 <p align="center">
   <img src="docs/screenshots/item-desktop.webp" width="72%" alt="An item page on desktop">

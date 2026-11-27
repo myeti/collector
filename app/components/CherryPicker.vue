@@ -86,7 +86,7 @@ import { fieldsFor } from '../../shared/media.js'
 import { norm } from '../../shared/text.js'
 import { languageName } from '../lib/format.js'
 
-const SKIP = new Set(['cover', 'consumed', 'digitalized', 'condition'])
+const SKIP = new Set(['cover', 'consumed', 'digitalized', 'condition', 'tags'])
 
 export default {
   name: 'CherryPicker',

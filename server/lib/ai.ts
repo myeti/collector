@@ -68,7 +68,7 @@ export async function testConnection(llm: LlmConfig): Promise<string> {
 // ---------------------------------------------------------------- Schemas
 
 // Never asked from the AI: the user's own note, the synopsis (not on a front cover), the item's state.
-const HIDDEN = new Set(['cover', 'consumed', 'digitalized', 'comment', 'description', 'condition'])
+const HIDDEN = new Set(['cover', 'consumed', 'digitalized', 'comment', 'description', 'condition', 'tags'])
 
 /**
  * Item fields for a media type, lenient on purpose: models in plain JSON mode often omit empty fields

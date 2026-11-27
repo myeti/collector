@@ -1,6 +1,9 @@
 export const CONDITIONS: string[]
 export const COMMON_FIELDS: string[]
 export const LANGUAGES: string[]
+export const MAX_TAGS: number
+export const MAX_TAG_LENGTH: number
+export function normalizeTags(raw: any): string[]
 export const MEDIA: Record<string, { icon: string; quickFilter: string; fields: string[]; hidden?: string[]; categories: string[]; genres: string[]; formats: string[] }>
 export const PLATFORM_GROUPS: { brand: string; platforms: string[] }[]
 export const PLATFORM_LABELS: Record<string, string>

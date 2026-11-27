@@ -37,6 +37,10 @@
             <h1 class="display title">{{ item.title }}</h1>
             <p v-if="byline" class="byline">{{ byline }}</p>
             <p v-if="item.saga" class="saga"><vue-feather type="bookmark" size="14" /> {{ item.saga }}<template v-if="item.volume"> · {{ volumeLabel }} {{ item.volume }}</template></p>
+            <!-- The owner's tags: each opens the shelf filtered on it -->
+            <div v-if="item.tags?.length" class="tags" :aria-label="$t('fields.tags')">
+              <router-link v-for="t in item.tags" :key="t" class="tag" :to="{ path: `/c/${item.type}`, query: { tag: t } }">#{{ t }}</router-link>
+            </div>
 
             <div class="actions">
               <button
@@ -241,6 +245,12 @@ export default {
 .title { font-size: clamp(24px, 3.6vw, 34px); line-height: 1.1; }
 .byline { margin: 0; font-size: 15px; font-weight: 550; color: var(--muted); }
 .saga { margin: 0; color: var(--accent-ink); display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag {
+  display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border-radius: 13px; font-size: 12.5px; font-weight: 550;
+  color: var(--muted); background: var(--surface-2); border: 1px solid var(--border); text-decoration: none; transition: all 0.2s var(--ease);
+}
+.tag:hover { color: var(--accent-ink); border-color: var(--accent-line); background: var(--accent-soft); }
 .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-top: 8px; }
 .consumed-btn {
   display: inline-flex; align-items: center; gap: 8px; height: var(--h); padding: 0 12px 0 5px; border-radius: var(--r);
@@ -275,6 +285,6 @@ dd { margin: 0; font-weight: 550; font-size: 13.5px; overflow-wrap: anywhere; }
   .hero { grid-template-columns: 1fr; gap: 18px; justify-items: center; text-align: center; }
   .art { width: min(46vw, 190px); }
   .info { align-items: center; }
-  .actions { justify-content: center; }
+  .actions, .tags { justify-content: center; }
 }
 </style>

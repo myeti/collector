@@ -35,6 +35,7 @@ export default {
     emptyText: 'Scannez un code-barres, photographiez une couverture ou saisissez-le : le premier objet est le plus magique.',
     noResults: 'Rien ne correspond à « {q} »',
     noResultsText: 'Essayez un autre mot ou effacez les filtres.',
+    allTags: 'éléments ayant tous ces tags',
     clearFilters: 'Effacer les filtres',
     countBy: {
       book: 'aucun livre | 1 livre | {n} livres', music: 'aucun disque | 1 disque | {n} disques', movie: 'aucun film | 1 film | {n} films',
@@ -69,6 +70,9 @@ export default {
     formatBy: { videogame: 'Plateforme' },
     volumeBy: { music: 'Numéro', movie: 'Numéro', videogame: 'Numéro', custom: 'Numéro' },
     commentHint: 'Votre note perso : les sources ne la remplissent jamais',
+    tags: 'Tags',
+    tagsPlaceholder: 'dédicacé, cadeau, à prêter…',
+    tagsHint: 'Vos propres étiquettes, pour retrouver vos éléments. Entrée ou une virgule en ajoute une.',
     digitalized: 'Copie numérique',
     digitalizedHint: 'Pas d’objet physique, mais possédé : ebook, fichiers, jeu dématérialisé…',
     releasePlaceholder: 'AAAA ou AAAA-MM-JJ',

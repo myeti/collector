@@ -35,6 +35,7 @@ export default {
     emptyText: 'Scan a barcode, snap a cover or type it in: the first item is the most magical.',
     noResults: 'Nothing matches “{q}”',
     noResultsText: 'Try another word, or clear the filters.',
+    allTags: 'items with all of them',
     clearFilters: 'Clear filters',
     countBy: {
       book: 'no book | 1 book | {n} books', music: 'no record | 1 record | {n} records', movie: 'no movie | 1 movie | {n} movies',
@@ -69,6 +70,9 @@ export default {
     formatBy: { videogame: 'Platform' },
     volumeBy: { music: 'Number', movie: 'Number', videogame: 'Number', custom: 'Number' },
     commentHint: 'Your own note: sources never fill it in',
+    tags: 'Tags',
+    tagsPlaceholder: 'signed, gift, to lend…',
+    tagsHint: 'Your own labels, to find items by them. Enter or a comma adds one.',
     digitalized: 'Digital copy',
     digitalizedHint: 'Not a physical item, but owned: ebook, files, digital game…',
     releasePlaceholder: 'YYYY or YYYY-MM-DD',

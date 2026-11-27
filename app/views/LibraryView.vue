@@ -117,6 +117,22 @@
               <option v-for="g in genres" :key="g" :value="g">{{ genreLabel(g) }}</option>
             </select>
           </div>
+          <!-- Sagas and tags of this shelf, when it has some -->
+          <div v-if="sagaOptions.length" class="field">
+            <label for="f-saga">{{ sagaLabel }}</label>
+            <select id="f-saga" v-model="filters.saga" class="select">
+              <option value="">{{ $t('common.all') }}</option>
+              <option v-for="s in sagaOptions" :key="s.value" :value="s.value">{{ s.value }} ({{ s.count }})</option>
+            </select>
+          </div>
+          <div v-if="tagOptions.length" class="field full">
+            <span class="label">{{ $t('fields.tags') }}<span v-if="filters.tags.length > 1" class="faint"> · {{ $t('library.allTags') }}</span></span>
+            <div class="chips wrap">
+              <button v-for="t in tagOptions" :key="t.value" class="chip" :class="{ on: filters.tags.includes(t.value) }" :aria-pressed="filters.tags.includes(t.value)" @click="toggleTag(t.value)">
+                #{{ t.value }} <span class="n">{{ t.count }}</span>
+              </button>
+            </div>
+          </div>
           <div class="field">
             <span class="label">{{ $t('fields.language') }}</span>
             <div class="segmented accent">
@@ -224,7 +240,7 @@ import { personColor, initial } from '../lib/people.js'
 
 const PAGE = 48
 // owner: whose items (in a family), the user's saved choice (store.owner)
-const emptyFilters = (owner = store.owner) => ({ category: '', consumed: '', digitalized: '', format: '', genre: '', language: '', owner, sort: 'title' })
+const emptyFilters = (owner = store.owner) => ({ category: '', consumed: '', digitalized: '', format: '', genre: '', language: '', saga: '', tags: [], owner, sort: 'title' })
 
 export default {
   name: 'LibraryView',
@@ -235,8 +251,8 @@ export default {
       MEDIA,
       LANGUAGES,
       q: this.$route.query.q || '',
-      filters: emptyFilters(),
-      showFilters: false,
+      filters: { ...emptyFilters(), tags: this.$route.query.tag ? [String(this.$route.query.tag)] : [] },
+      showFilters: !!this.$route.query.tag && !window.matchMedia('(max-width: 899px)').matches,
       items: [],
       total: 0,
       loading: true,
@@ -247,7 +263,7 @@ export default {
       searchFocused: false,
       seq: 0,
       direction: 'next',
-      facets: { category: [], format: [] },
+      facets: { category: [], format: [], saga: [], tags: [] },
       mobile: window.matchMedia('(max-width: 899px)').matches,
       leaving: false,
     }
@@ -262,6 +278,10 @@ export default {
       return ['title', 'author', 'release', 'recent', 'saga']
     },
     quickField() { return MEDIA[this.type].quickFilter },
+    /** The shelf's sagas and tags (a selected one stays listed while other filters hide it) */
+    sagaOptions() { return this.withSelected(this.facets.saga, this.filters.saga ? [this.filters.saga] : []) },
+    tagOptions() { return this.withSelected(this.facets.tags, this.filters.tags) },
+    sagaLabel() { return this.$te(`fields.sagaBy.${this.type}`) ? this.$t(`fields.sagaBy.${this.type}`) : this.$t('fields.saga') },
     /** Values present in the collection for the quick bar, in their natural order. */
     quickValues() {
       const field = this.quickField
@@ -275,9 +295,9 @@ export default {
     /** Filters of the panel (the quick bar's own value is visible, so not counted in the badge). */
     activeFilters() {
       const f = this.filters
-      const fields = ['category', 'consumed', 'digitalized', 'format', 'genre', 'language'].filter((k) => k !== this.quickField)
+      const fields = ['category', 'consumed', 'digitalized', 'format', 'genre', 'language', 'saga'].filter((k) => k !== this.quickField)
       // Owner: counted when it is not the default (own items in a family, everyone otherwise)
-      return [...fields.map((k) => f[k]), f.sort !== 'title' ? 1 : '', f.owner !== this.defaultOwner ? 1 : ''].filter(Boolean).length
+      return [...fields.map((k) => f[k]), ...f.tags, f.sort !== 'title' ? 1 : '', f.owner !== this.defaultOwner ? 1 : ''].filter(Boolean).length
     },
     otherView() { return store.view === 'grid' ? 'list' : 'grid' },
     defaultOwner() { return store.user?.family ? store.user.id : '' },
@@ -311,7 +331,7 @@ export default {
       // The filters watcher refetches.
       this.filters = emptyFilters()
       this.items = []
-      this.facets = { category: [], format: [] }
+      this.facets = { category: [], format: [], saga: [], tags: [] }
       this.fetchFacets()
     },
     q(v) {
@@ -331,6 +351,7 @@ export default {
     this.mq = window.matchMedia('(max-width: 899px)')
     this.onMq = (e) => { this.mobile = e.matches }
     this.mq.addEventListener('change', this.onMq)
+    if (this.$route.query.tag) this.$router.replace({ query: { ...this.$route.query, tag: undefined } })
     this.fetch(true)
     this.fetchFacets()
     this.onKey = (e) => this.shortcut(e)
@@ -369,7 +390,7 @@ export default {
       this.loading = true
       const offset = reset ? 0 : this.items.length
       try {
-        const data = await api.get(`/items${qs({ type: this.type, q: this.q.trim(), ...this.filters, limit: PAGE, offset })}`)
+        const data = await api.get(`/items${qs({ type: this.type, q: this.q.trim(), ...this.filters, tags: this.filters.tags.join(',') || undefined, limit: PAGE, offset })}`)
         if (seq !== this.seq) return
         if (reset) {
           this.items = data.items
@@ -412,6 +433,15 @@ export default {
       if (this.showFilters && this.stuck && !this.mobile) window.scrollTo({ top: this.$refs.stickAt.offsetTop, behavior: 'smooth' })
     },
     resetFilters() { this.filters = emptyFilters(this.defaultOwner) },
+    toggleTag(tag) {
+      const tags = this.filters.tags
+      this.filters.tags = tags.includes(tag) ? tags.filter((t) => t !== tag) : [...tags, tag]
+    },
+    withSelected(list = [], selected = []) {
+      const out = [...list]
+      for (const v of selected) if (!out.some((o) => o.value === v)) out.push({ value: v, count: 0 })
+      return out
+    },
     genreLabel(g) { return this.$te(`genre.${this.type}.${g}`) ? this.$t(`genre.${this.type}.${g}`) : g },
     shortcut(e) {
       const tag = document.activeElement?.tagName
@@ -448,8 +478,8 @@ export default {
 <style scoped>
 .library { overflow-x: clip; }
 .quickbar .chip { height: 28px; gap: 6px; }
-.quickbar .n { font-size: 10.5px; color: var(--faint); font-variant-numeric: tabular-nums; }
-.quickbar .chip.on .n { color: inherit; opacity: 0.75; }
+.quickbar .n, .filters .n { font-size: 10.5px; color: var(--faint); font-variant-numeric: tabular-nums; }
+.quickbar .chip.on .n, .filters .chip.on .n { color: inherit; opacity: 0.75; }
 .quick-enter-active { transition: transform 0.28s var(--ease), opacity 0.2s var(--ease); }
 .quick-leave-active { transition: transform 0.16s ease-in, opacity 0.16s ease-in; }
 .quick-enter-from, .quick-leave-to { transform: translateY(100%); opacity: 0; }

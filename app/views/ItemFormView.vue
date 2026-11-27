@@ -125,6 +125,11 @@
               </div>
             </div>
 
+            <div class="field full">
+              <label for="f-tags">{{ $t('fields.tags') }}</label>
+              <TagInput id="f-tags" v-model="form.tags" :suggestions="suggestions.tags || []" :placeholder="$t('fields.tagsPlaceholder')" @focus="suggest('tags')" />
+              <span class="hint">{{ $t('fields.tagsHint') }}</span>
+            </div>
             <div class="field">
               <label for="f-language">{{ $t('fields.language') }}</label>
               <select id="f-language" v-model="form.language" class="select">
@@ -194,7 +199,7 @@
       </div>
     </form>
 
-    <datalist v-for="(values, f) in suggestions" :id="`dl-${f}`" :key="f">
+    <datalist v-for="(values, f) in suggestions" :id="`dl-${f}`" :key="f"><!-- tags: TagInput lists its own -->
       <option v-for="v in values" :key="v" :value="v" />
     </datalist>
 
@@ -220,6 +225,7 @@ import Sheet from '../components/Sheet.vue'
 import BarcodeScanner from '../components/BarcodeScanner.vue'
 import ItemReview from '../components/ItemReview.vue'
 import DuplicateBanner from '../components/DuplicateBanner.vue'
+import TagInput from '../components/TagInput.vue'
 import { duplicateWatcher } from '../lib/duplicates.js'
 import { api, qs } from '../lib/api.js'
 import { store } from '../lib/store.js'
@@ -230,16 +236,16 @@ import { languageName } from '../lib/format.js'
 import { queryText } from '../lib/lookup.js'
 import { currentItem, finishItem, reviewPath } from '../lib/addSession.js'
 
-const SUGGESTABLE = ['author', 'editor', 'saga', 'genre', 'category', 'format']
+const SUGGESTABLE = ['author', 'editor', 'saga', 'genre', 'category', 'format', 'tags']
 
 function blank(type) {
   const f = Object.fromEntries(ALL_FIELDS.map((k) => [k, null]))
-  return { ...f, type, title: '', consumed: false, digitalized: false }
+  return { ...f, type, title: '', consumed: false, digitalized: false, tags: [] }
 }
 
 export default {
   name: 'ItemFormView',
-  components: { CoverImage, MediaSwitcher, Sheet, BarcodeScanner, ItemReview, DuplicateBanner },
+  components: { CoverImage, MediaSwitcher, Sheet, BarcodeScanner, ItemReview, DuplicateBanner, TagInput },
   data() {
     return {
       store,
@@ -328,6 +334,7 @@ export default {
     }
     this.syncGenreMode()
     this.ensureFormat()
+    this.suggest('tags') // known tags, so a typed one takes their spelling at once
     // A new item is in the user's language until told otherwise (optional: editing never fills it in)
     if (!this.editing && !this.form.language && LANGUAGES.includes(store.user?.locale)) this.form.language = store.user.locale
     this.watchDuplicate(this.form.type, this.identity, this.editing ? this.$route.params.id : undefined)

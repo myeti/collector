@@ -2,7 +2,7 @@ import { Sequelize, DataTypes, Op } from 'sequelize'
 import type { Model, ModelStatic } from 'sequelize'
 import { config } from './config.ts'
 import { MIGRATIONS } from './migrations/index.ts'
-import { CONDITIONS, MEDIA_TYPES } from '../shared/media.js'
+import { CONDITIONS, MEDIA_TYPES, MAX_TAG_LENGTH } from '../shared/media.js'
 
 export const sequelize = new Sequelize(config.db.name, config.db.user, config.db.password, {
   host: config.db.host,
@@ -79,6 +79,7 @@ export const Item: AnyModel = sequelize.define('item', {
   digitalized: { type: DataTypes.BOOLEAN, defaultValue: false, allowNull: false }, // digital copy, not a physical one
   description: { type: DataTypes.TEXT }, // synopsis from metadata sources
   comment: { type: DataTypes.TEXT }, // the user's own note
+  tags: { type: DataTypes.ARRAY(DataTypes.STRING(MAX_TAG_LENGTH)), defaultValue: [], allowNull: false }, // the user's own labels
   user_id: { type: DataTypes.UUID, allowNull: false },
   // Book
   isbn: { type: DataTypes.STRING(13) },

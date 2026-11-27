@@ -5,6 +5,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- Tags on every item: your own labels ("signed", "first edition", "to lend"…), typed in the form as chips (Enter or a comma adds one, Backspace removes the last, tags already used are suggested). Shown on the item page, where a tag opens the shelf filtered on it; found by the search; kept in Collector exports.
+  - A tag typed with another case reuses the spelling already in use ("signed" → "Signed"), so a tag never splits in two in the filters. At most 20 tags of 40 characters per item.
+- Filters: the shelf's sagas (a list, with their counts) and its tags (pick several: the items having all of them), each shown when the shelf has some.
+
+### Upgrading
+- The database gets its new `tags` column on start, as usual: nothing to do.
+
 ## [0.4.0] - 2026-11-23
 
 ### Added
