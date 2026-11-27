@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-27
+
 ### Added
 - Tags on every item: your own labels ("signed", "first edition", "to lend"…), typed in the form as chips (Enter or a comma adds one, Backspace removes the last, tags already used are suggested). Shown on the item page, where a tag opens the shelf filtered on it; found by the search; kept in Collector exports.
   - A tag typed with another case reuses the spelling already in use ("signed" → "Signed"), so a tag never splits in two in the filters. At most 20 tags of 40 characters per item.
